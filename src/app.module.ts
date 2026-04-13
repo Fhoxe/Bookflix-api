@@ -4,6 +4,7 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { Resolver, Query } from '@nestjs/graphql';
 import { join } from 'path';
+import { PrismaModule } from './prisma/prisma.module.js';
 
 @Resolver()
 class HealthResolver {
@@ -27,6 +28,8 @@ class HealthResolver {
       playground: false,
       context: ({ req }: { req: Request }) => ({ req }),
     }),
+
+    PrismaModule,
   ],
   providers: [HealthResolver],
 })
