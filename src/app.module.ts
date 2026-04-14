@@ -5,6 +5,7 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { Resolver, Query } from '@nestjs/graphql';
 import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { AuthModule } from './auth/auth.module.js';
 
 @Resolver()
 class HealthResolver {
@@ -20,7 +21,6 @@ class HealthResolver {
       isGlobal: true,
       envFilePath: '.env',
     }),
-
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'schema.graphql'),
@@ -28,8 +28,8 @@ class HealthResolver {
       playground: false,
       context: ({ req }: { req: Request }) => ({ req }),
     }),
-
     PrismaModule,
+    AuthModule,
   ],
   providers: [HealthResolver],
 })
