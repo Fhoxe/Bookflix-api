@@ -6,6 +6,7 @@ import { Resolver, Query } from '@nestjs/graphql';
 import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { BooksModule } from './books/books.module.js';
 
 @Resolver()
 class HealthResolver {
@@ -30,6 +31,7 @@ class HealthResolver {
     }),
     PrismaModule,
     AuthModule,
+    BooksModule,
   ],
   providers: [HealthResolver],
 })

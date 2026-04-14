@@ -8,23 +8,64 @@ type AuthResponse {
   username: String!
 }
 
+type BookType {
+  authors: String!
+  coverUrl: String
+  createdAt: DateTime!
+  description: String
+  genre: String
+  googleBooksId: String
+  id: String!
+  isbn: String
+  lastSyncedAt: DateTime!
+  publishedYear: Int
+  title: String!
+  updatedAt: DateTime!
+}
+
+input CreateBookInput {
+  authors: String!
+  coverUrl: String
+  description: String
+  genre: String
+  isbn: String
+  publishedYear: Int
+  title: String!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
 input LoginInput {
   email: String!
   password: String!
 }
 
 type Mutation {
+  createBook(input: CreateBookInput!): BookType!
   login(input: LoginInput!): AuthResponse!
   register(input: RegisterInput!): AuthResponse!
 }
 
 type Query {
+  book(id: String!): BookType!
+  books(limit: Int! = 10, page: Int! = 1): [BookType!]!
+  booksByGenre(genre: String!, limit: Int! = 10, page: Int! = 1): [BookType!]!
   healthcheck: String!
   me: String!
+  searchBooks(input: SearchBooksInput!): [BookType!]!
 }
 
 input RegisterInput {
   email: String!
   password: String!
   username: String!
+}
+
+input SearchBooksInput {
+  genre: String
+  maxResults: Int = 10
+  query: String!
 }

@@ -40,17 +40,18 @@ model User {
 }
 
 model Book {
-  id              String   @id @default(uuid())
-  googleBooksId   String?  @unique
-  title           String
-  authors         String   @default("")
-  description     String?
-  publishedYear   Int?
-  genre           String?
-  coverUrl        String?
-  isbn            String?  @unique
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String   @id @default(uuid())
+  googleBooksId String?  @unique
+  title         String
+  authors       String   @default("")
+  description   String?
+  publishedYear Int?
+  genre         String?
+  coverUrl      String?
+  isbn          String?  @unique
+  lastSyncedAt  DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   collection UserBook[]
   reviews    Review[]
