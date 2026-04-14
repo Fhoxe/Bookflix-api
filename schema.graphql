@@ -2,6 +2,11 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+input AddToCollectionInput {
+  bookId: String!
+  status: ReadingStatus = TO_READ
+}
+
 type AuthResponse {
   accessToken: String!
   userId: String!
@@ -44,9 +49,12 @@ input LoginInput {
 }
 
 type Mutation {
+  addToCollection(input: AddToCollectionInput!): UserBookType!
   createBook(input: CreateBookInput!): BookType!
   login(input: LoginInput!): AuthResponse!
   register(input: RegisterInput!): AuthResponse!
+  removeFromCollection(bookId: String!): UserBookType!
+  updateCollectionStatus(input: UpdateCollectionStatusInput!): UserBookType!
 }
 
 type Query {
@@ -55,7 +63,21 @@ type Query {
   booksByGenre(genre: String!, limit: Int! = 10, page: Int! = 1): [BookType!]!
   healthcheck: String!
   me: String!
+  myCollection(limit: Int! = 10, page: Int! = 1, status: ReadingStatus): [UserBookType!]!
   searchBooks(input: SearchBooksInput!): [BookType!]!
+  userCollection(limit: Int! = 10, page: Int! = 1, status: ReadingStatus, userId: String!): [UserBookType!]!
+}
+
+"""Statut de lecture d'un livre dans la collection"""
+enum ReadingStatus {
+  """Lu"""
+  READ
+
+  """En cours de lecture"""
+  READING
+
+  """À lire"""
+  TO_READ
 }
 
 input RegisterInput {
@@ -68,4 +90,19 @@ input SearchBooksInput {
   genre: String
   maxResults: Int = 10
   query: String!
+}
+
+input UpdateCollectionStatusInput {
+  bookId: String!
+  status: ReadingStatus!
+}
+
+type UserBookType {
+  book: BookType
+  bookId: String!
+  createdAt: DateTime!
+  id: String!
+  status: ReadingStatus!
+  updatedAt: DateTime!
+  userId: String!
 }

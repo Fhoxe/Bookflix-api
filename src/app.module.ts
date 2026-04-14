@@ -7,6 +7,7 @@ import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BooksModule } from './books/books.module.js';
+import { CollectionModule } from './collection/collection.module.js';
 
 @Resolver()
 class HealthResolver {
@@ -32,6 +33,7 @@ class HealthResolver {
     PrismaModule,
     AuthModule,
     BooksModule,
+    CollectionModule,
   ],
   providers: [HealthResolver],
 })
