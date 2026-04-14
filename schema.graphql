@@ -38,6 +38,12 @@ input CreateBookInput {
   title: String!
 }
 
+input CreateReviewInput {
+  bookId: String!
+  comment: String
+  rating: Int!
+}
+
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
@@ -51,14 +57,18 @@ input LoginInput {
 type Mutation {
   addToCollection(input: AddToCollectionInput!): UserBookType!
   createBook(input: CreateBookInput!): BookType!
+  createReview(input: CreateReviewInput!): ReviewType!
+  deleteReview(id: String!): ReviewType!
   login(input: LoginInput!): AuthResponse!
   register(input: RegisterInput!): AuthResponse!
   removeFromCollection(bookId: String!): UserBookType!
   updateCollectionStatus(input: UpdateCollectionStatusInput!): UserBookType!
+  updateReview(id: String!, input: UpdateReviewInput!): ReviewType!
 }
 
 type Query {
   book(id: String!): BookType!
+  bookReviews(bookId: String!, limit: Int! = 10, page: Int! = 1): [ReviewType!]!
   books(limit: Int! = 10, page: Int! = 1): [BookType!]!
   booksByGenre(genre: String!, limit: Int! = 10, page: Int! = 1): [BookType!]!
   healthcheck: String!
@@ -66,6 +76,7 @@ type Query {
   myCollection(limit: Int! = 10, page: Int! = 1, status: ReadingStatus): [UserBookType!]!
   searchBooks(input: SearchBooksInput!): [BookType!]!
   userCollection(limit: Int! = 10, page: Int! = 1, status: ReadingStatus, userId: String!): [UserBookType!]!
+  userReviews(limit: Int! = 10, page: Int! = 1, userId: String!): [ReviewType!]!
 }
 
 """Statut de lecture d'un livre dans la collection"""
@@ -86,6 +97,17 @@ input RegisterInput {
   username: String!
 }
 
+type ReviewType {
+  book: BookType
+  bookId: String!
+  comment: String
+  createdAt: DateTime!
+  id: String!
+  rating: Int!
+  updatedAt: DateTime!
+  userId: String!
+}
+
 input SearchBooksInput {
   genre: String
   maxResults: Int = 10
@@ -95,6 +117,11 @@ input SearchBooksInput {
 input UpdateCollectionStatusInput {
   bookId: String!
   status: ReadingStatus!
+}
+
+input UpdateReviewInput {
+  comment: String
+  rating: Int
 }
 
 type UserBookType {
