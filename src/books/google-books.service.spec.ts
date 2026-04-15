@@ -98,7 +98,10 @@ describe('GoogleBooksService', () => {
         of(mockAxiosResponse(mockGoogleBooksResponse)),
       );
 
-      const result = await googleBooksService.searchBooks('Clean Code', 10);
+      const result = await googleBooksService.searchBooks(
+        { query: 'Clean Code' },
+        10,
+      );
 
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({
@@ -113,12 +116,69 @@ describe('GoogleBooksService', () => {
       });
     });
 
+    it('devrait construire la query avec intitle', async () => {
+      mockHttpService.get.mockReturnValue(
+        of(mockAxiosResponse(mockGoogleBooksResponse)),
+      );
+
+      await googleBooksService.searchBooks({ title: 'Clean Code' }, 10);
+
+      expect(mockHttpService.get).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          params: expect.objectContaining({
+            q: 'intitle:Clean Code',
+          }),
+        }),
+      );
+    });
+
+    it('devrait construire la query avec inauthor', async () => {
+      mockHttpService.get.mockReturnValue(
+        of(mockAxiosResponse(mockGoogleBooksResponse)),
+      );
+
+      await googleBooksService.searchBooks({ author: 'Martin' }, 10);
+
+      expect(mockHttpService.get).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          params: expect.objectContaining({
+            q: 'inauthor:Martin',
+          }),
+        }),
+      );
+    });
+
+    it('devrait combiner query, intitle et inauthor', async () => {
+      mockHttpService.get.mockReturnValue(
+        of(mockAxiosResponse(mockGoogleBooksResponse)),
+      );
+
+      await googleBooksService.searchBooks(
+        { query: 'code', title: 'Clean', author: 'Martin' },
+        10,
+      );
+
+      expect(mockHttpService.get).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          params: expect.objectContaining({
+            q: 'code+intitle:Clean+inauthor:Martin',
+          }),
+        }),
+      );
+    });
+
     it('devrait retourner un tableau vide si aucun résultat', async () => {
       mockHttpService.get.mockReturnValue(
         of(mockAxiosResponse(mockEmptyResponse)),
       );
 
-      const result = await googleBooksService.searchBooks('xxxxxxxxxxx', 10);
+      const result = await googleBooksService.searchBooks(
+        { query: 'xxxxxxxxxxx' },
+        10,
+      );
 
       expect(result).toEqual([]);
     });
@@ -128,7 +188,7 @@ describe('GoogleBooksService', () => {
         of(mockAxiosResponse(mockResponseWithMissingFields)),
       );
 
-      const result = await googleBooksService.searchBooks('Livre', 10);
+      const result = await googleBooksService.searchBooks({ query: 'Livre' }, 10);
 
       expect(result[0]?.authors).toBe('Auteur inconnu');
       expect(result[0]?.genre).toBeUndefined();
@@ -137,27 +197,20 @@ describe('GoogleBooksService', () => {
       expect(result[0]?.coverUrl).toBeUndefined();
     });
 
-    it('devrait inclure le genre dans la query si fourni', async () => {
-      mockHttpService.get.mockReturnValue(
-        of(mockAxiosResponse(mockGoogleBooksResponse)),
-      );
+    it('devrait retourner un tableau vide si aucun critère fourni', async () => {
+      const result = await googleBooksService.searchBooks({}, 10);
 
-      await googleBooksService.searchBooks('Clean Code', 10, 'Informatique');
-
-      expect(mockHttpService.get).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          params: expect.objectContaining({
-            q: 'Clean Code+subject:Informatique',
-          }),
-        }),
-      );
+      expect(result).toEqual([]);
+      expect(mockHttpService.get).not.toHaveBeenCalled();
     });
 
     it('devrait retourner un tableau vide si l\'API échoue', async () => {
       mockHttpService.get.mockReturnValue(throwError(() => httpError));
 
-      const result = await googleBooksService.searchBooks('Clean Code', 10);
+      const result = await googleBooksService.searchBooks(
+        { query: 'Clean Code' },
+        10,
+      );
 
       expect(result).toEqual([]);
     });
@@ -179,7 +232,7 @@ describe('GoogleBooksService', () => {
         expect.objectContaining({
           params: expect.objectContaining({
             maxResults: 40,
-            q: 'subject+subject:Informatique',
+            q: 'subject:Informatique',
           }),
         }),
       );

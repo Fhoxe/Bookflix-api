@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
+import { SearchBooksInput } from './dto/search-books.input.js';
 
 export interface GoogleBookVolume {
   id: string;
@@ -52,17 +53,22 @@ export class GoogleBooksService {
   }
 
   async searchBooks(
-    query: string,
+    input: SearchBooksInput,
     maxResults = 10,
     genre?: string,
   ): Promise<MappedBook[]> {
-    const fullQuery = genre ? `${query}+subject:${genre}` : query;
+    const query = this.buildGoogleQuery(input, genre);
+
+    if (!query) {
+      this.logger.warn('Aucun critère de recherche fourni');
+      return [];
+    }
 
     try {
       const response = await firstValueFrom(
         this.httpService.get<GoogleBooksResponse>(`${this.apiUrl}/volumes`, {
           params: {
-            q: fullQuery,
+            q: query,
             maxResults,
             key: this.apiKey,
           },
@@ -70,7 +76,7 @@ export class GoogleBooksService {
       );
 
       const items = response.data.items ?? [];
-      return items.map((item) => this.mapVolume(item));
+      return items.map((item) => this.mapVolume(item, genre));
     } catch (error) {
       this.logger.error(`Erreur lors de la recherche Google Books : ${error}`);
       return [];
@@ -78,10 +84,32 @@ export class GoogleBooksService {
   }
 
   async searchByGenre(genre: string, maxResults = 40): Promise<MappedBook[]> {
-    return this.searchBooks('subject', maxResults, genre);
+    return this.searchBooks({ genre }, maxResults, genre);
   }
 
-  private mapVolume(volume: GoogleBookVolume): MappedBook {
+  private buildGoogleQuery(input: SearchBooksInput, genre?: string): string {
+    const parts: string[] = [];
+
+    if (input.query) {
+      parts.push(input.query);
+    }
+
+    if (input.title) {
+      parts.push(`intitle:${input.title}`);
+    }
+
+    if (input.author) {
+      parts.push(`inauthor:${input.author}`);
+    }
+
+    if (input.genre ?? genre) {
+      parts.push(`subject:${input.genre ?? genre}`);
+    }
+
+    return parts.join('+');
+  }
+
+  private mapVolume(volume: GoogleBookVolume, genre?: string): MappedBook {
     const { volumeInfo } = volume;
 
     const isbn = volumeInfo.industryIdentifiers?.find(
@@ -92,7 +120,7 @@ export class GoogleBooksService {
       ? parseInt(volumeInfo.publishedDate.substring(0, 4), 10)
       : undefined;
 
-    const genre = volumeInfo.categories?.[0];
+    const bookGenre = genre ?? volumeInfo.categories?.[0];
 
     return {
       googleBooksId: volume.id,
@@ -100,7 +128,7 @@ export class GoogleBooksService {
       authors: volumeInfo.authors?.join(', ') ?? 'Auteur inconnu',
       description: volumeInfo.description,
       publishedYear: isNaN(publishedYear ?? NaN) ? undefined : publishedYear,
-      genre,
+      genre: bookGenre,
       coverUrl: volumeInfo.imageLinks?.thumbnail,
       isbn,
     };

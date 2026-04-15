@@ -373,5 +373,124 @@ describe('BooksRepository', () => {
       ).rejects.toThrow('Erreur base de données');
     });
   });
+
+  // ─── searchLocal ────────────────────────────────────────────────
+
+  describe('searchLocal', () => {
+    it('devrait retourner les livres correspondant à la query', async () => {
+      mockPrismaService.book.findMany.mockResolvedValue([mockBook]);
+
+      const result = await booksRepository.searchLocal(
+        { query: 'Clean' },
+        1,
+        10,
+      );
+
+      expect(result).toEqual([mockBook]);
+      expect(mockPrismaService.book.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ OR: expect.any(Array) }),
+          skip: 0,
+          take: 10,
+        }),
+      );
+      expect(mockPrismaService.book.findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('devrait filtrer par auteur', async () => {
+      mockPrismaService.book.findMany.mockResolvedValue([mockBook]);
+
+      await booksRepository.searchLocal({ author: 'Martin' }, 1, 10);
+
+      expect(mockPrismaService.book.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            authors: { contains: 'Martin', mode: 'insensitive' },
+          }),
+        }),
+      );
+    });
+
+    it('devrait filtrer par titre', async () => {
+      mockPrismaService.book.findMany.mockResolvedValue([mockBook]);
+
+      await booksRepository.searchLocal({ title: 'Clean' }, 1, 10);
+
+      expect(mockPrismaService.book.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            title: { contains: 'Clean', mode: 'insensitive' },
+          }),
+        }),
+      );
+    });
+
+    it('devrait filtrer par plage d\'années', async () => {
+      mockPrismaService.book.findMany.mockResolvedValue([mockBook]);
+
+      await booksRepository.searchLocal(
+        { yearFrom: 2000, yearTo: 2010 },
+        1,
+        10,
+      );
+
+      expect(mockPrismaService.book.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            publishedYear: { gte: 2000, lte: 2010 },
+          }),
+        }),
+      );
+    });
+
+    it('devrait retourner un tableau vide si aucun résultat', async () => {
+      mockPrismaService.book.findMany.mockResolvedValue([]);
+
+      const result = await booksRepository.searchLocal(
+        { query: 'xxxxxxxxxxx' },
+        1,
+        10,
+      );
+
+      expect(result).toEqual([]);
+    });
+
+    it('devrait lever une erreur si Prisma échoue', async () => {
+      mockPrismaService.book.findMany.mockRejectedValue(prismaError);
+
+      await expect(
+        booksRepository.searchLocal({ query: 'Clean' }, 1, 10),
+      ).rejects.toThrow('Erreur base de données');
+    });
+  });
+
+  // ─── countLocal ─────────────────────────────────────────────────
+
+  describe('countLocal', () => {
+    it('devrait retourner le nombre de livres correspondant aux filtres', async () => {
+      mockPrismaService.book.count.mockResolvedValue(5);
+
+      const result = await booksRepository.countLocal({ query: 'Clean' });
+
+      expect(result).toBe(5);
+      expect(mockPrismaService.book.count).toHaveBeenCalledTimes(1);
+    });
+
+    it('devrait retourner 0 si aucun résultat', async () => {
+      mockPrismaService.book.count.mockResolvedValue(0);
+
+      const result = await booksRepository.countLocal({ query: 'xxxxxxxxxxx' });
+
+      expect(result).toBe(0);
+    });
+
+    it('devrait lever une erreur si Prisma échoue', async () => {
+      mockPrismaService.book.count.mockRejectedValue(prismaError);
+
+      await expect(
+        booksRepository.countLocal({ query: 'Clean' }),
+      ).rejects.toThrow('Erreur base de données');
+    });
+  });
 });
 

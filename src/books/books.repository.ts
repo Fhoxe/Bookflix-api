@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { Book } from '@prisma/client';
+import { Book, Prisma } from '@prisma/client';
 import { MappedBook } from './google-books.service.js';
 import { CreateBookInput } from './dto/create-book.input.js';
+import { SearchBooksInput } from './dto/search-books.input.js';
 
 @Injectable()
 export class BooksRepository {
@@ -23,15 +24,32 @@ export class BooksRepository {
   async findByGenre(genre: string, page: number, limit: number): Promise<Book[]> {
     return this.prisma.book.findMany({
       where: {
-        genre: {
-          contains: genre,
-          mode: 'insensitive',
-        },
+        genre: { contains: genre, mode: 'insensitive' },
       },
       skip: (page - 1) * limit,
       take: limit,
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async searchLocal(
+    input: SearchBooksInput,
+    page: number,
+    limit: number,
+  ): Promise<Book[]> {
+    const where = this.buildLocalSearchWhere(input);
+
+    return this.prisma.book.findMany({
+      where,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async countLocal(input: SearchBooksInput): Promise<number> {
+    const where = this.buildLocalSearchWhere(input);
+    return this.prisma.book.count({ where });
   }
 
   async countAll(): Promise<number> {
@@ -41,10 +59,7 @@ export class BooksRepository {
   async countByGenre(genre: string): Promise<number> {
     return this.prisma.book.count({
       where: {
-        genre: {
-          contains: genre,
-          mode: 'insensitive',
-        },
+        genre: { contains: genre, mode: 'insensitive' },
       },
     });
   }
@@ -95,5 +110,40 @@ export class BooksRepository {
 
   async create(input: CreateBookInput): Promise<Book> {
     return this.prisma.book.create({ data: input });
+  }
+
+  private buildLocalSearchWhere(
+    input: SearchBooksInput,
+  ): Prisma.BookWhereInput {
+    const where: Prisma.BookWhereInput = {};
+
+    if (input.query) {
+      where.OR = [
+        { title: { contains: input.query, mode: 'insensitive' } },
+        { authors: { contains: input.query, mode: 'insensitive' } },
+        { description: { contains: input.query, mode: 'insensitive' } },
+      ];
+    }
+
+    if (input.title) {
+      where.title = { contains: input.title, mode: 'insensitive' };
+    }
+
+    if (input.author) {
+      where.authors = { contains: input.author, mode: 'insensitive' };
+    }
+
+    if (input.genre) {
+      where.genre = { contains: input.genre, mode: 'insensitive' };
+    }
+
+    if (input.yearFrom ?? input.yearTo) {
+      where.publishedYear = {
+        ...(input.yearFrom && { gte: input.yearFrom }),
+        ...(input.yearTo && { lte: input.yearTo }),
+      };
+    }
+
+    return where;
   }
 }

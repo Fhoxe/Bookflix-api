@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { BooksService } from './books.service.js';
 import { BooksRepository } from './books.repository.js';
 import { GoogleBooksService } from './google-books.service.js';
@@ -87,6 +87,8 @@ const mockBooksRepository = {
   create: jest.fn(),
   getAverageRating: jest.fn().mockResolvedValue(4.5),
   getReviewCount: jest.fn().mockResolvedValue(10),
+  searchLocal: jest.fn(),
+  countLocal: jest.fn(),
 };
 
 const mockGoogleBooksService = {
@@ -112,6 +114,9 @@ describe('BooksService', () => {
 
     booksService = module.get<BooksService>(BooksService);
     jest.clearAllMocks();
+
+    mockBooksRepository.getAverageRating.mockResolvedValue(4.5);
+    mockBooksRepository.getReviewCount.mockResolvedValue(10);
   });
 
   // ─── searchBooks ────────────────────────────────────────────────
@@ -133,14 +138,21 @@ describe('BooksService', () => {
       expect(result.hasNextPage).toBe(false);
       expect(result.hasPreviousPage).toBe(false);
       expect(mockGoogleBooksService.searchBooks).toHaveBeenCalledWith(
-        'Clean Code',
+        { query: 'Clean Code', maxResults: 10 },
         10,
-        undefined,
       );
       expect(mockBooksRepository.upsertFromGoogle).toHaveBeenCalledTimes(1);
     });
 
-    it('devrait retourner un résultat vide si Google Books ne retourne rien', async () => {
+    it('devrait lever une BadRequestException si aucun critère fourni', async () => {
+      await expect(booksService.searchBooks({})).rejects.toThrow(
+        BadRequestException,
+      );
+
+      expect(mockGoogleBooksService.searchBooks).not.toHaveBeenCalled();
+    });
+
+    it('devrait retourner items vide si Google Books ne retourne rien', async () => {
       mockGoogleBooksService.searchBooks.mockResolvedValue([]);
 
       const result = await booksService.searchBooks({
@@ -159,9 +171,8 @@ describe('BooksService', () => {
       await booksService.searchBooks({ query: 'Clean Code' });
 
       expect(mockGoogleBooksService.searchBooks).toHaveBeenCalledWith(
-        'Clean Code',
+        { query: 'Clean Code' },
         10,
-        undefined,
       );
     });
 
@@ -181,12 +192,99 @@ describe('BooksService', () => {
       expect(result.items[0]?.publishedYear).toBeUndefined();
     });
 
+    it('devrait filtrer par yearFrom après récupération Google Books', async () => {
+      mockGoogleBooksService.searchBooks.mockResolvedValue([
+        { ...mockMappedBook, publishedYear: 2005 },
+        { ...mockMappedBook, googleBooksId: 'google-456', publishedYear: 2010 },
+      ]);
+      mockBooksRepository.upsertFromGoogle.mockResolvedValue(mockPrismaBook);
+
+      const result = await booksService.searchBooks({
+        query: 'Clean Code',
+        yearFrom: 2008,
+      });
+
+      expect(mockBooksRepository.upsertFromGoogle).toHaveBeenCalledTimes(1);
+      expect(result.items).toHaveLength(1);
+    });
+
+    it('devrait filtrer par yearTo après récupération Google Books', async () => {
+      mockGoogleBooksService.searchBooks.mockResolvedValue([
+        { ...mockMappedBook, publishedYear: 2005 },
+        { ...mockMappedBook, googleBooksId: 'google-456', publishedYear: 2010 },
+      ]);
+      mockBooksRepository.upsertFromGoogle.mockResolvedValue(mockPrismaBook);
+
+      const result = await booksService.searchBooks({
+        query: 'Clean Code',
+        yearTo: 2007,
+      });
+
+      expect(mockBooksRepository.upsertFromGoogle).toHaveBeenCalledTimes(1);
+      expect(result.items).toHaveLength(1);
+    });
+
     it('devrait lever une erreur si l\'upsert échoue', async () => {
       mockGoogleBooksService.searchBooks.mockResolvedValue([mockMappedBook]);
       mockBooksRepository.upsertFromGoogle.mockRejectedValue(repositoryError);
 
       await expect(
         booksService.searchBooks({ query: 'Clean Code', maxResults: 10 }),
+      ).rejects.toThrow('Erreur base de données');
+    });
+  });
+
+  // ─── searchLocalBooks ────────────────────────────────────────────
+
+  describe('searchLocalBooks', () => {
+    it('devrait retourner un PaginatedBooksType depuis la DB', async () => {
+      mockBooksRepository.searchLocal.mockResolvedValue([mockPrismaBook]);
+      mockBooksRepository.countLocal.mockResolvedValue(1);
+
+      const result = await booksService.searchLocalBooks(
+        { query: 'Clean' },
+        1,
+        10,
+      );
+
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+      expect(mockBooksRepository.searchLocal).toHaveBeenCalledWith(
+        { query: 'Clean' },
+        1,
+        10,
+      );
+      expect(mockBooksRepository.searchLocal).toHaveBeenCalledTimes(1);
+    });
+
+    it('devrait lever une BadRequestException si aucun critère fourni', async () => {
+      await expect(
+        booksService.searchLocalBooks({}, 1, 10),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockBooksRepository.searchLocal).not.toHaveBeenCalled();
+    });
+
+    it('devrait retourner items vide si aucun résultat en DB', async () => {
+      mockBooksRepository.searchLocal.mockResolvedValue([]);
+      mockBooksRepository.countLocal.mockResolvedValue(0);
+
+      const result = await booksService.searchLocalBooks(
+        { author: 'Inconnu' },
+        1,
+        10,
+      );
+
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
+    });
+
+    it('devrait lever une erreur si le repository échoue', async () => {
+      mockBooksRepository.searchLocal.mockRejectedValue(repositoryError);
+      mockBooksRepository.countLocal.mockResolvedValue(0);
+
+      await expect(
+        booksService.searchLocalBooks({ query: 'Clean' }, 1, 10),
       ).rejects.toThrow('Erreur base de données');
     });
   });

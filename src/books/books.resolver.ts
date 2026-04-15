@@ -20,6 +20,15 @@ export class BooksResolver {
   }
 
   @Query(() => PaginatedBooksType)
+  async searchLocalBooks(
+    @Args('input') input: SearchBooksInput,
+    @Args('page', { type: () => Int, defaultValue: 1 }) page: number,
+    @Args('limit', { type: () => Int, defaultValue: 10 }) limit: number,
+  ): Promise<PaginatedBooksType> {
+    return this.booksService.searchLocalBooks(input, page, limit);
+  }
+
+  @Query(() => PaginatedBooksType)
   async books(
     @Args('page', { type: () => Int, defaultValue: 1 }) page: number,
     @Args('limit', { type: () => Int, defaultValue: 10 }) limit: number,

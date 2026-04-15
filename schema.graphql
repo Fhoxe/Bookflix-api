@@ -108,6 +108,7 @@ type Query {
   me: UserProfileType!
   myCollection(limit: Int! = 10, page: Int! = 1, status: ReadingStatus): PaginatedUserBooksType!
   searchBooks(input: SearchBooksInput!): PaginatedBooksType!
+  searchLocalBooks(input: SearchBooksInput!, limit: Int! = 10, page: Int! = 1): PaginatedBooksType!
   user(id: String!): UserType!
   userCollection(limit: Int! = 10, page: Int! = 1, status: ReadingStatus, userId: String!): PaginatedUserBooksType!
   userReviews(limit: Int! = 10, page: Int! = 1, userId: String!): PaginatedReviewsType!
@@ -143,9 +144,13 @@ type ReviewType {
 }
 
 input SearchBooksInput {
+  author: String
   genre: String
   maxResults: Int = 10
-  query: String!
+  query: String
+  title: String
+  yearFrom: Int
+  yearTo: Int
 }
 
 input UpdateCollectionStatusInput {

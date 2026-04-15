@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Book } from '@prisma/client';
 import { BooksRepository } from './books.repository.js';
 import { GoogleBooksService } from './google-books.service.js';
@@ -16,14 +16,30 @@ export class BooksService {
   ) {}
 
   async searchBooks(input: SearchBooksInput): Promise<PaginatedBooksType> {
+    if (!input.query && !input.author && !input.title && !input.genre) {
+      throw new BadRequestException(
+        'Au moins un critère de recherche est requis : query, author, title ou genre',
+      );
+    }
+
     const results = await this.googleBooksService.searchBooks(
-      input.query,
+      input,
       input.maxResults ?? 10,
-      input.genre,
     );
 
+    // Filtre par année après récupération Google Books
+    const filtered = results.filter((book) => {
+      if (input.yearFrom && book.publishedYear && book.publishedYear < input.yearFrom) {
+        return false;
+      }
+      if (input.yearTo && book.publishedYear && book.publishedYear > input.yearTo) {
+        return false;
+      }
+      return true;
+    });
+
     const upsertedBooks = await Promise.all(
-      results.map((book) => this.booksRepository.upsertFromGoogle(book)),
+      filtered.map((book) => this.booksRepository.upsertFromGoogle(book)),
     );
 
     const items = await Promise.all(
@@ -33,6 +49,31 @@ export class BooksService {
     return {
       items,
       ...buildPaginationMeta(items.length, 1, items.length || 1),
+    };
+  }
+
+  async searchLocalBooks(
+    input: SearchBooksInput,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedBooksType> {
+    if (!input.query && !input.author && !input.title && !input.genre
+      && !input.yearFrom && !input.yearTo) {
+      throw new BadRequestException(
+        'Au moins un critère de recherche est requis',
+      );
+    }
+
+    const [books, total] = await Promise.all([
+      this.booksRepository.searchLocal(input, page, limit),
+      this.booksRepository.countLocal(input),
+    ]);
+
+    const items = await Promise.all(books.map((book) => this.toBookType(book)));
+
+    return {
+      items,
+      ...buildPaginationMeta(total, page, limit),
     };
   }
 
