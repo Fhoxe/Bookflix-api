@@ -5,8 +5,6 @@ import { cleanDatabase, getTestPrisma } from './helpers/db.helper.js';
 import { registerAndLogin, authHeader, TestUser } from './helpers/auth.helper.js';
 import { ReadingStatus } from '@prisma/client';
 
-// ─── Tests ────────────────────────────────────────────────────────
-
 describe('Reviews (e2e)', () => {
   let app: INestApplication;
   let user: TestUser;
@@ -28,16 +26,10 @@ describe('Reviews (e2e)', () => {
 
     const prisma = getTestPrisma();
     const book = await prisma.book.create({
-      data: {
-        title: 'Clean Code',
-        authors: 'Robert C. Martin',
-        genre: 'Technologie',
-      },
+      data: { title: 'Clean Code', authors: 'Robert C. Martin', genre: 'Technologie' },
     });
     bookId = book.id;
   });
-
-  // ─── Helper ───────────────────────────────────────────────────────
 
   async function addBookToCollectionWithStatus(
     testUser: TestUser,
@@ -45,11 +37,7 @@ describe('Reviews (e2e)', () => {
   ): Promise<void> {
     const prisma = getTestPrisma();
     await prisma.userBook.create({
-      data: {
-        userId: testUser.userId,
-        bookId,
-        status,
-      },
+      data: { userId: testUser.userId, bookId, status },
     });
   }
 
@@ -93,9 +81,7 @@ describe('Reviews (e2e)', () => {
           createReview(input: {
             bookId: "${bookId}"
             rating: 5
-          }) {
-            id
-          }
+          }) { id }
         }
       `;
 
@@ -115,9 +101,7 @@ describe('Reviews (e2e)', () => {
           createReview(input: {
             bookId: "${bookId}"
             rating: 5
-          }) {
-            id
-          }
+          }) { id }
         }
       `;
 
@@ -137,9 +121,7 @@ describe('Reviews (e2e)', () => {
           createReview(input: {
             bookId: "${bookId}"
             rating: 5
-          }) {
-            id
-          }
+          }) { id }
         }
       `;
 
@@ -164,9 +146,7 @@ describe('Reviews (e2e)', () => {
           createReview(input: {
             bookId: "${bookId}"
             rating: 6
-          }) {
-            id
-          }
+          }) { id }
         }
       `;
 
@@ -184,9 +164,7 @@ describe('Reviews (e2e)', () => {
           createReview(input: {
             bookId: "${bookId}"
             rating: 5
-          }) {
-            id
-          }
+          }) { id }
         }
       `;
 
@@ -212,9 +190,7 @@ describe('Reviews (e2e)', () => {
             bookId: "${bookId}"
             rating: 5
             comment: "Excellent livre !"
-          }) {
-            id
-          }
+          }) { id }
         }
       `;
 
@@ -281,9 +257,7 @@ describe('Reviews (e2e)', () => {
           updateReview(
             id: "00000000-0000-0000-0000-000000000000"
             input: { rating: 4 }
-          ) {
-            id
-          }
+          ) { id }
         }
       `;
 
@@ -301,9 +275,7 @@ describe('Reviews (e2e)', () => {
           updateReview(
             id: "${reviewId}"
             input: { rating: 1 }
-          ) {
-            id
-          }
+          ) { id }
         }
       `;
 
@@ -321,9 +293,7 @@ describe('Reviews (e2e)', () => {
           updateReview(
             id: "${reviewId}"
             input: { rating: 4 }
-          ) {
-            id
-          }
+          ) { id }
         }
       `;
 
@@ -348,9 +318,7 @@ describe('Reviews (e2e)', () => {
           createReview(input: {
             bookId: "${bookId}"
             rating: 5
-          }) {
-            id
-          }
+          }) { id }
         }
       `;
 
@@ -365,9 +333,7 @@ describe('Reviews (e2e)', () => {
     it('devrait supprimer une review', async () => {
       const mutation = `
         mutation {
-          deleteReview(id: "${reviewId}") {
-            id
-          }
+          deleteReview(id: "${reviewId}") { id }
         }
       `;
 
@@ -384,9 +350,7 @@ describe('Reviews (e2e)', () => {
     it('devrait lever une erreur si la review est introuvable', async () => {
       const mutation = `
         mutation {
-          deleteReview(id: "00000000-0000-0000-0000-000000000000") {
-            id
-          }
+          deleteReview(id: "00000000-0000-0000-0000-000000000000") { id }
         }
       `;
 
@@ -401,9 +365,7 @@ describe('Reviews (e2e)', () => {
     it('devrait lever une erreur si l\'utilisateur n\'est pas le propriétaire', async () => {
       const mutation = `
         mutation {
-          deleteReview(id: "${reviewId}") {
-            id
-          }
+          deleteReview(id: "${reviewId}") { id }
         }
       `;
 
@@ -418,9 +380,7 @@ describe('Reviews (e2e)', () => {
     it('devrait refuser l\'accès sans token', async () => {
       const mutation = `
         mutation {
-          deleteReview(id: "${reviewId}") {
-            id
-          }
+          deleteReview(id: "${reviewId}") { id }
         }
       `;
 
@@ -445,9 +405,7 @@ describe('Reviews (e2e)', () => {
             bookId: "${bookId}"
             rating: ${rating}
             comment: "Commentaire ${rating}"
-          }) {
-            id
-          }
+          }) { id }
         }
       `;
 
@@ -462,14 +420,21 @@ describe('Reviews (e2e)', () => {
         .send({ query: createReview(otherUser.accessToken, 3) });
     });
 
-    it('devrait retourner les reviews d\'un livre', async () => {
+    it('devrait retourner un PaginatedReviewsType pour un livre', async () => {
+      const targetBookId = bookId;
+
       const query = `
         query {
-          bookReviews(bookId: "${bookId}", page: 1, limit: 10) {
-            id
-            rating
-            comment
-            userId
+          bookReviews(bookId: "${targetBookId}", page: 1, limit: 10) {
+            items {
+              id
+              rating
+              comment
+              userId
+            }
+            total
+            totalPages
+            hasNextPage
           }
         }
       `;
@@ -481,23 +446,23 @@ describe('Reviews (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.errors).toBeUndefined();
-      expect(response.body.data.bookReviews).toHaveLength(2);
+      expect(response.body.data.bookReviews.items).toHaveLength(2);
+      expect(response.body.data.bookReviews.total).toBe(2);
     });
 
-    it('devrait retourner un tableau vide si aucune review', async () => {
+    it('devrait retourner items vide si aucune review', async () => {
       const prisma = getTestPrisma();
       const otherBook = await prisma.book.create({
-        data: {
-          title: 'Autre livre',
-          authors: 'Auteur',
-          genre: 'Fiction',
-        },
+        data: { title: 'Autre livre', authors: 'Auteur', genre: 'Fiction' },
       });
+
+      const targetBookId = otherBook.id;
 
       const query = `
         query {
-          bookReviews(bookId: "${otherBook.id}", page: 1, limit: 10) {
-            id
+          bookReviews(bookId: "${targetBookId}", page: 1, limit: 10) {
+            items { id }
+            total
           }
         }
       `;
@@ -509,14 +474,17 @@ describe('Reviews (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.errors).toBeUndefined();
-      expect(response.body.data.bookReviews).toHaveLength(0);
+      expect(response.body.data.bookReviews.items).toHaveLength(0);
+      expect(response.body.data.bookReviews.total).toBe(0);
     });
 
     it('devrait refuser l\'accès sans token', async () => {
+      const targetBookId = bookId;
+
       const query = `
         query {
-          bookReviews(bookId: "${bookId}", page: 1, limit: 10) {
-            id
+          bookReviews(bookId: "${targetBookId}", page: 1, limit: 10) {
+            items { id }
           }
         }
       `;
@@ -541,9 +509,7 @@ describe('Reviews (e2e)', () => {
             bookId: "${bookId}"
             rating: 5
             comment: "Excellent !"
-          }) {
-            id
-          }
+          }) { id }
         }
       `;
 
@@ -553,16 +519,20 @@ describe('Reviews (e2e)', () => {
         .send({ query: mutation });
     });
 
-    it('devrait retourner les reviews d\'un utilisateur', async () => {
+    it('devrait retourner un PaginatedReviewsType pour un utilisateur', async () => {
+      const targetUserId = user.userId;
+
       const query = `
         query {
-          userReviews(userId: "${user.userId}", page: 1, limit: 10) {
-            id
-            rating
-            comment
-            book {
-              title
+          userReviews(userId: "${targetUserId}", page: 1, limit: 10) {
+            items {
+              id
+              rating
+              comment
+              book { title }
             }
+            total
+            totalPages
           }
         }
       `;
@@ -574,16 +544,20 @@ describe('Reviews (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.errors).toBeUndefined();
-      expect(response.body.data.userReviews).toHaveLength(1);
-      expect(response.body.data.userReviews[0].book).toBeDefined();
-      expect(response.body.data.userReviews[0].book.title).toBe('Clean Code');
+      expect(response.body.data.userReviews.items).toHaveLength(1);
+      expect(response.body.data.userReviews.total).toBe(1);
+      expect(response.body.data.userReviews.items[0].book).toBeDefined();
+      expect(response.body.data.userReviews.items[0].book.title).toBe('Clean Code');
     });
 
-    it('devrait retourner un tableau vide si l\'utilisateur n\'a pas de reviews', async () => {
+    it('devrait retourner items vide si l\'utilisateur n\'a pas de reviews', async () => {
+      const targetUserId = otherUser.userId;
+
       const query = `
         query {
-          userReviews(userId: "${otherUser.userId}", page: 1, limit: 10) {
-            id
+          userReviews(userId: "${targetUserId}", page: 1, limit: 10) {
+            items { id }
+            total
           }
         }
       `;
@@ -595,14 +569,17 @@ describe('Reviews (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.errors).toBeUndefined();
-      expect(response.body.data.userReviews).toHaveLength(0);
+      expect(response.body.data.userReviews.items).toHaveLength(0);
+      expect(response.body.data.userReviews.total).toBe(0);
     });
 
     it('devrait refuser l\'accès sans token', async () => {
+      const targetUserId = user.userId;
+
       const query = `
         query {
-          userReviews(userId: "${user.userId}", page: 1, limit: 10) {
-            id
+          userReviews(userId: "${targetUserId}", page: 1, limit: 10) {
+            items { id }
           }
         }
       `;

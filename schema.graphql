@@ -67,18 +67,48 @@ type Mutation {
   updateReview(id: String!, input: UpdateReviewInput!): ReviewType!
 }
 
+type PaginatedBooksType {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  items: [BookType!]!
+  limit: Int!
+  page: Int!
+  total: Int!
+  totalPages: Int!
+}
+
+type PaginatedReviewsType {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  items: [ReviewType!]!
+  limit: Int!
+  page: Int!
+  total: Int!
+  totalPages: Int!
+}
+
+type PaginatedUserBooksType {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  items: [UserBookType!]!
+  limit: Int!
+  page: Int!
+  total: Int!
+  totalPages: Int!
+}
+
 type Query {
   book(id: String!): BookType!
-  bookReviews(bookId: String!, limit: Int! = 10, page: Int! = 1): [ReviewType!]!
-  books(limit: Int! = 10, page: Int! = 1): [BookType!]!
-  booksByGenre(genre: String!, limit: Int! = 10, page: Int! = 1): [BookType!]!
+  bookReviews(bookId: String!, limit: Int! = 10, page: Int! = 1): PaginatedReviewsType!
+  books(limit: Int! = 10, page: Int! = 1): PaginatedBooksType!
+  booksByGenre(genre: String!, limit: Int! = 10, page: Int! = 1): PaginatedBooksType!
   healthcheck: String!
   me: UserProfileType!
-  myCollection(limit: Int! = 10, page: Int! = 1, status: ReadingStatus): [UserBookType!]!
-  searchBooks(input: SearchBooksInput!): [BookType!]!
+  myCollection(limit: Int! = 10, page: Int! = 1, status: ReadingStatus): PaginatedUserBooksType!
+  searchBooks(input: SearchBooksInput!): PaginatedBooksType!
   user(id: String!): UserType!
-  userCollection(limit: Int! = 10, page: Int! = 1, status: ReadingStatus, userId: String!): [UserBookType!]!
-  userReviews(limit: Int! = 10, page: Int! = 1, userId: String!): [ReviewType!]!
+  userCollection(limit: Int! = 10, page: Int! = 1, status: ReadingStatus, userId: String!): PaginatedUserBooksType!
+  userReviews(limit: Int! = 10, page: Int! = 1, userId: String!): PaginatedReviewsType!
 }
 
 """Statut de lecture d'un livre dans la collection"""

@@ -3,6 +3,7 @@ import { UseGuards } from '@nestjs/common';
 import { ReadingStatus } from '@prisma/client';
 import { CollectionService } from './collection.service.js';
 import { UserBookType } from './dto/user-book.type.js';
+import { PaginatedUserBooksType } from './dto/paginated-user-books.type.js';
 import { AddToCollectionInput } from './dto/add-to-collection.input.js';
 import { UpdateCollectionStatusInput } from './dto/update-collection-status.input.js';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard.js';
@@ -41,24 +42,24 @@ export class CollectionResolver {
     return this.collectionService.removeFromCollection(user.sub, bookId);
   }
 
-  @Query(() => [UserBookType])
+  @Query(() => PaginatedUserBooksType)
   async myCollection(
     @CurrentUser() user: JwtPayload,
     @Args('page', { type: () => Int, defaultValue: 1 }) page: number,
     @Args('limit', { type: () => Int, defaultValue: 10 }) limit: number,
     @Args('status', { type: () => ReadingStatus, nullable: true }) status?: ReadingStatus,
-  ): Promise<UserBookType[]> {
+  ): Promise<PaginatedUserBooksType> {
     return this.collectionService.getMyCollection(user.sub, page, limit, status);
   }
 
-  @Query(() => [UserBookType])
+  @Query(() => PaginatedUserBooksType)
   async userCollection(
     @CurrentUser() user: JwtPayload,
     @Args('userId') targetUserId: string,
     @Args('page', { type: () => Int, defaultValue: 1 }) page: number,
     @Args('limit', { type: () => Int, defaultValue: 10 }) limit: number,
     @Args('status', { type: () => ReadingStatus, nullable: true }) status?: ReadingStatus,
-  ): Promise<UserBookType[]> {
+  ): Promise<PaginatedUserBooksType> {
     const targetUser = await this.usersService.findById(targetUserId);
 
     return this.collectionService.getUserCollection(

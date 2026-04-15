@@ -4,8 +4,6 @@ import { createTestApp, closeTestApp } from './helpers/app.helper.js';
 import { cleanDatabase, getTestPrisma } from './helpers/db.helper.js';
 import { registerAndLogin, authHeader, TestUser } from './helpers/auth.helper.js';
 
-// ─── Tests ────────────────────────────────────────────────────────
-
 describe('Books (e2e)', () => {
   let app: INestApplication;
   let user: TestUser;
@@ -103,33 +101,29 @@ describe('Books (e2e)', () => {
       const prisma = getTestPrisma();
       await prisma.book.createMany({
         data: [
-          {
-            title: 'Clean Code',
-            authors: 'Robert C. Martin',
-            genre: 'Technologie',
-          },
-          {
-            title: 'The Pragmatic Programmer',
-            authors: 'David Thomas',
-            genre: 'Technologie',
-          },
-          {
-            title: 'Dune',
-            authors: 'Frank Herbert',
-            genre: 'Fiction',
-          },
+          { title: 'Clean Code', authors: 'Robert C. Martin', genre: 'Technologie' },
+          { title: 'The Pragmatic Programmer', authors: 'David Thomas', genre: 'Technologie' },
+          { title: 'Dune', authors: 'Frank Herbert', genre: 'Fiction' },
         ],
       });
     });
 
-    it('devrait retourner une liste paginée de livres', async () => {
+    it('devrait retourner un PaginatedBooksType', async () => {
       const query = `
         query {
           books(page: 1, limit: 10) {
-            id
-            title
-            authors
-            genre
+            items {
+              id
+              title
+              authors
+              genre
+            }
+            total
+            page
+            limit
+            totalPages
+            hasNextPage
+            hasPreviousPage
           }
         }
       `;
@@ -141,15 +135,24 @@ describe('Books (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.errors).toBeUndefined();
-      expect(response.body.data.books).toHaveLength(3);
+      expect(response.body.data.books.items).toHaveLength(3);
+      expect(response.body.data.books.total).toBe(3);
+      expect(response.body.data.books.totalPages).toBe(1);
+      expect(response.body.data.books.hasNextPage).toBe(false);
+      expect(response.body.data.books.hasPreviousPage).toBe(false);
     });
 
     it('devrait paginer correctement', async () => {
       const query = `
         query {
           books(page: 1, limit: 2) {
-            id
-            title
+            items {
+              id
+              title
+            }
+            total
+            totalPages
+            hasNextPage
           }
         }
       `;
@@ -161,16 +164,20 @@ describe('Books (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.errors).toBeUndefined();
-      expect(response.body.data.books).toHaveLength(2);
+      expect(response.body.data.books.items).toHaveLength(2);
+      expect(response.body.data.books.total).toBe(3);
+      expect(response.body.data.books.totalPages).toBe(2);
+      expect(response.body.data.books.hasNextPage).toBe(true);
     });
 
-    it('devrait retourner un tableau vide si aucun livre en base', async () => {
+    it('devrait retourner items vide si aucun livre en base', async () => {
       await getTestPrisma().book.deleteMany();
 
       const query = `
         query {
           books(page: 1, limit: 10) {
-            id
+            items { id }
+            total
           }
         }
       `;
@@ -182,14 +189,15 @@ describe('Books (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.errors).toBeUndefined();
-      expect(response.body.data.books).toHaveLength(0);
+      expect(response.body.data.books.items).toHaveLength(0);
+      expect(response.body.data.books.total).toBe(0);
     });
 
     it('devrait refuser l\'accès sans token', async () => {
       const query = `
         query {
           books(page: 1, limit: 10) {
-            id
+            items { id }
           }
         }
       `;
@@ -210,11 +218,7 @@ describe('Books (e2e)', () => {
     beforeEach(async () => {
       const prisma = getTestPrisma();
       const book = await prisma.book.create({
-        data: {
-          title: 'Clean Code',
-          authors: 'Robert C. Martin',
-          genre: 'Technologie',
-        },
+        data: { title: 'Clean Code', authors: 'Robert C. Martin', genre: 'Technologie' },
       });
       bookId = book.id;
     });
@@ -283,32 +287,25 @@ describe('Books (e2e)', () => {
       const prisma = getTestPrisma();
       await prisma.book.createMany({
         data: [
-          {
-            title: 'Clean Code',
-            authors: 'Robert C. Martin',
-            genre: 'Technologie',
-          },
-          {
-            title: 'The Pragmatic Programmer',
-            authors: 'David Thomas',
-            genre: 'Technologie',
-          },
-          {
-            title: 'Dune',
-            authors: 'Frank Herbert',
-            genre: 'Fiction',
-          },
+          { title: 'Clean Code', authors: 'Robert C. Martin', genre: 'Technologie' },
+          { title: 'The Pragmatic Programmer', authors: 'David Thomas', genre: 'Technologie' },
+          { title: 'Dune', authors: 'Frank Herbert', genre: 'Fiction' },
         ],
       });
     });
 
-    it('devrait retourner les livres d\'un genre donné', async () => {
+    it('devrait retourner un PaginatedBooksType pour un genre', async () => {
       const query = `
         query {
           booksByGenre(genre: "Technologie", page: 1, limit: 10) {
-            id
-            title
-            genre
+            items {
+              id
+              title
+              genre
+            }
+            total
+            totalPages
+            hasNextPage
           }
         }
       `;
@@ -320,15 +317,17 @@ describe('Books (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.errors).toBeUndefined();
-      expect(response.body.data.booksByGenre).toHaveLength(2);
-      expect(response.body.data.booksByGenre[0].genre).toBe('Technologie');
+      expect(response.body.data.booksByGenre.items).toHaveLength(2);
+      expect(response.body.data.booksByGenre.total).toBe(2);
+      expect(response.body.data.booksByGenre.items[0].genre).toBe('Technologie');
     });
 
-    it('devrait retourner un tableau vide si aucun livre pour ce genre', async () => {
+    it('devrait retourner items vide si aucun livre pour ce genre', async () => {
       const query = `
         query {
           booksByGenre(genre: "GenreInexistant", page: 1, limit: 10) {
-            id
+            items { id }
+            total
           }
         }
       `;
@@ -340,14 +339,15 @@ describe('Books (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.errors).toBeUndefined();
-      expect(response.body.data.booksByGenre).toHaveLength(0);
+      expect(response.body.data.booksByGenre.items).toHaveLength(0);
+      expect(response.body.data.booksByGenre.total).toBe(0);
     });
 
     it('devrait refuser l\'accès sans token', async () => {
       const query = `
         query {
           booksByGenre(genre: "Technologie", page: 1, limit: 10) {
-            id
+            items { id }
           }
         }
       `;
@@ -370,10 +370,13 @@ describe('Books (e2e)', () => {
             query: "Clean Code"
             maxResults: 5
           }) {
-            id
-            title
-            authors
-            googleBooksId
+            items {
+              id
+              title
+              authors
+              googleBooksId
+            }
+            total
           }
         }
       `;
@@ -385,8 +388,8 @@ describe('Books (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.errors).toBeUndefined();
-      expect(response.body.data.searchBooks.length).toBeGreaterThan(0);
-      expect(response.body.data.searchBooks[0].googleBooksId).toBeDefined();
+      expect(response.body.data.searchBooks.items.length).toBeGreaterThan(0);
+      expect(response.body.data.searchBooks.items[0].googleBooksId).toBeDefined();
     }, 15000);
 
     it('devrait mettre les résultats en cache en DB', async () => {
@@ -396,8 +399,11 @@ describe('Books (e2e)', () => {
             query: "The Pragmatic Programmer"
             maxResults: 3
           }) {
-            id
-            googleBooksId
+            items {
+              id
+              googleBooksId
+            }
+            total
           }
         }
       `;
@@ -419,7 +425,7 @@ describe('Books (e2e)', () => {
       const query = `
         query {
           searchBooks(input: { query: "Clean Code" }) {
-            id
+            items { id }
           }
         }
       `;

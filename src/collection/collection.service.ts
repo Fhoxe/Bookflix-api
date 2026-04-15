@@ -10,7 +10,9 @@ import { BooksService } from '../books/books.service.js';
 import { AddToCollectionInput } from './dto/add-to-collection.input.js';
 import { UpdateCollectionStatusInput } from './dto/update-collection-status.input.js';
 import { UserBookType } from './dto/user-book.type.js';
+import { PaginatedUserBooksType } from './dto/paginated-user-books.type.js';
 import { BookType } from '../books/dto/book.type.js';
+import { buildPaginationMeta } from '../common/helpers/pagination.helper.js';
 
 @Injectable()
 export class CollectionService {
@@ -87,15 +89,16 @@ export class CollectionService {
     page: number,
     limit: number,
     status?: ReadingStatus,
-  ): Promise<UserBookType[]> {
-    const userBooks = await this.collectionRepository.findByUserId(
-      userId,
-      page,
-      limit,
-      status,
-    );
+  ): Promise<PaginatedUserBooksType> {
+    const [userBooks, total] = await Promise.all([
+      this.collectionRepository.findByUserId(userId, page, limit, status),
+      this.collectionRepository.countByUserId(userId, status),
+    ]);
 
-    return userBooks.map((ub) => this.toUserBookType(ub));
+    return {
+      items: userBooks.map((ub) => this.toUserBookType(ub)),
+      ...buildPaginationMeta(total, page, limit),
+    };
   }
 
   async getUserCollection(
@@ -105,21 +108,20 @@ export class CollectionService {
     limit: number,
     status?: ReadingStatus,
     isTargetPublic?: boolean,
-  ): Promise<UserBookType[]> {
+  ): Promise<PaginatedUserBooksType> {
     if (requesterId !== targetUserId && !isTargetPublic) {
-      throw new ForbiddenException(
-        'Ce profil est privé',
-      );
+      throw new ForbiddenException('Ce profil est privé');
     }
 
-    const userBooks = await this.collectionRepository.findByUserId(
-      targetUserId,
-      page,
-      limit,
-      status,
-    );
+    const [userBooks, total] = await Promise.all([
+      this.collectionRepository.findByUserId(targetUserId, page, limit, status),
+      this.collectionRepository.countByUserId(targetUserId, status),
+    ]);
 
-    return userBooks.map((ub) => this.toUserBookType(ub));
+    return {
+      items: userBooks.map((ub) => this.toUserBookType(ub)),
+      ...buildPaginationMeta(total, page, limit),
+    };
   }
 
   async getEntryByBookId(

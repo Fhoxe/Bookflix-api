@@ -2,6 +2,7 @@ import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { ReviewsService } from './reviews.service.js';
 import { ReviewType } from './dto/review.type.js';
+import { PaginatedReviewsType } from './dto/paginated-reviews.type.js';
 import { CreateReviewInput } from './dto/create-review.input.js';
 import { UpdateReviewInput } from './dto/update-review.input.js';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard.js';
@@ -37,21 +38,21 @@ export class ReviewsResolver {
     return this.reviewsService.deleteReview(user.sub, id);
   }
 
-  @Query(() => [ReviewType])
+  @Query(() => PaginatedReviewsType)
   async bookReviews(
     @Args('bookId') bookId: string,
     @Args('page', { type: () => Int, defaultValue: 1 }) page: number,
     @Args('limit', { type: () => Int, defaultValue: 10 }) limit: number,
-  ): Promise<ReviewType[]> {
+  ): Promise<PaginatedReviewsType> {
     return this.reviewsService.getBookReviews(bookId, page, limit);
   }
 
-  @Query(() => [ReviewType])
+  @Query(() => PaginatedReviewsType)
   async userReviews(
     @Args('userId') userId: string,
     @Args('page', { type: () => Int, defaultValue: 1 }) page: number,
     @Args('limit', { type: () => Int, defaultValue: 10 }) limit: number,
-  ): Promise<ReviewType[]> {
+  ): Promise<PaginatedReviewsType> {
     return this.reviewsService.getUserReviews(userId, page, limit);
   }
 }

@@ -11,7 +11,9 @@ import { CollectionService } from '../collection/collection.service.js';
 import { CreateReviewInput } from './dto/create-review.input.js';
 import { UpdateReviewInput } from './dto/update-review.input.js';
 import { ReviewType } from './dto/review.type.js';
+import { PaginatedReviewsType } from './dto/paginated-reviews.type.js';
 import { BookType } from '../books/dto/book.type.js';
+import { buildPaginationMeta } from '../common/helpers/pagination.helper.js';
 
 @Injectable()
 export class ReviewsService {
@@ -96,26 +98,32 @@ export class ReviewsService {
     bookId: string,
     page: number,
     limit: number,
-  ): Promise<ReviewType[]> {
-    const reviews = await this.reviewsRepository.findByBookId(
-      bookId,
-      page,
-      limit,
-    );
-    return reviews.map((review) => this.toReviewType(review));
+  ): Promise<PaginatedReviewsType> {
+    const [reviews, total] = await Promise.all([
+      this.reviewsRepository.findByBookId(bookId, page, limit),
+      this.reviewsRepository.countByBookId(bookId),
+    ]);
+
+    return {
+      items: reviews.map((review) => this.toReviewType(review)),
+      ...buildPaginationMeta(total, page, limit),
+    };
   }
 
   async getUserReviews(
     userId: string,
     page: number,
     limit: number,
-  ): Promise<ReviewType[]> {
-    const reviews = await this.reviewsRepository.findByUserId(
-      userId,
-      page,
-      limit,
-    );
-    return reviews.map((review) => this.toReviewType(review));
+  ): Promise<PaginatedReviewsType> {
+    const [reviews, total] = await Promise.all([
+      this.reviewsRepository.findByUserId(userId, page, limit),
+      this.reviewsRepository.countByUserId(userId),
+    ]);
+
+    return {
+      items: reviews.map((review) => this.toReviewType(review)),
+      ...buildPaginationMeta(total, page, limit),
+    };
   }
 
   private toReviewType(review: Review | ReviewWithBook): ReviewType {

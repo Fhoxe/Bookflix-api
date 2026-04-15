@@ -4,8 +4,6 @@ import { createTestApp, closeTestApp } from './helpers/app.helper.js';
 import { cleanDatabase, getTestPrisma } from './helpers/db.helper.js';
 import { registerAndLogin, authHeader, TestUser } from './helpers/auth.helper.js';
 
-// ─── Tests ────────────────────────────────────────────────────────
-
 describe('Collection (e2e)', () => {
   let app: INestApplication;
   let user: TestUser;
@@ -27,11 +25,7 @@ describe('Collection (e2e)', () => {
 
     const prisma = getTestPrisma();
     const book = await prisma.book.create({
-      data: {
-        title: 'Clean Code',
-        authors: 'Robert C. Martin',
-        genre: 'Technologie',
-      },
+      data: { title: 'Clean Code', authors: 'Robert C. Martin', genre: 'Technologie' },
     });
     bookId = book.id;
   });
@@ -89,9 +83,7 @@ describe('Collection (e2e)', () => {
     it('devrait lever une erreur si le livre est déjà dans la collection', async () => {
       const mutation = `
         mutation {
-          addToCollection(input: {
-            bookId: "${bookId}"
-          }) {
+          addToCollection(input: { bookId: "${bookId}" }) {
             id
           }
         }
@@ -132,9 +124,7 @@ describe('Collection (e2e)', () => {
     it('devrait refuser l\'accès sans token', async () => {
       const mutation = `
         mutation {
-          addToCollection(input: {
-            bookId: "${bookId}"
-          }) {
+          addToCollection(input: { bookId: "${bookId}" }) {
             id
           }
         }
@@ -157,9 +147,7 @@ describe('Collection (e2e)', () => {
           addToCollection(input: {
             bookId: "${bookId}"
             status: TO_READ
-          }) {
-            id
-          }
+          }) { id }
         }
       `;
 
@@ -217,11 +205,7 @@ describe('Collection (e2e)', () => {
     it('devrait lever une erreur si le livre n\'est pas dans la collection', async () => {
       const prisma = getTestPrisma();
       const otherBook = await prisma.book.create({
-        data: {
-          title: 'Autre livre',
-          authors: 'Auteur',
-          genre: 'Fiction',
-        },
+        data: { title: 'Autre livre', authors: 'Auteur', genre: 'Fiction' },
       });
 
       const mutation = `
@@ -229,9 +213,7 @@ describe('Collection (e2e)', () => {
           updateCollectionStatus(input: {
             bookId: "${otherBook.id}"
             status: READING
-          }) {
-            id
-          }
+          }) { id }
         }
       `;
 
@@ -249,9 +231,7 @@ describe('Collection (e2e)', () => {
           updateCollectionStatus(input: {
             bookId: "${bookId}"
             status: READING
-          }) {
-            id
-          }
+          }) { id }
         }
       `;
 
@@ -269,11 +249,7 @@ describe('Collection (e2e)', () => {
     beforeEach(async () => {
       const mutation = `
         mutation {
-          addToCollection(input: {
-            bookId: "${bookId}"
-          }) {
-            id
-          }
+          addToCollection(input: { bookId: "${bookId}" }) { id }
         }
       `;
 
@@ -306,18 +282,12 @@ describe('Collection (e2e)', () => {
     it('devrait lever une erreur si le livre n\'est pas dans la collection', async () => {
       const prisma = getTestPrisma();
       const otherBook = await prisma.book.create({
-        data: {
-          title: 'Autre livre',
-          authors: 'Auteur',
-          genre: 'Fiction',
-        },
+        data: { title: 'Autre livre', authors: 'Auteur', genre: 'Fiction' },
       });
 
       const mutation = `
         mutation {
-          removeFromCollection(bookId: "${otherBook.id}") {
-            id
-          }
+          removeFromCollection(bookId: "${otherBook.id}") { id }
         }
       `;
 
@@ -332,9 +302,7 @@ describe('Collection (e2e)', () => {
     it('devrait refuser l\'accès sans token', async () => {
       const mutation = `
         mutation {
-          removeFromCollection(bookId: "${bookId}") {
-            id
-          }
+          removeFromCollection(bookId: "${bookId}") { id }
         }
       `;
 
@@ -352,18 +320,12 @@ describe('Collection (e2e)', () => {
     beforeEach(async () => {
       const prisma = getTestPrisma();
       const book2 = await prisma.book.create({
-        data: {
-          title: 'The Pragmatic Programmer',
-          authors: 'David Thomas',
-          genre: 'Technologie',
-        },
+        data: { title: 'The Pragmatic Programmer', authors: 'David Thomas', genre: 'Technologie' },
       });
 
       const addMutation = (id: string) => `
         mutation {
-          addToCollection(input: { bookId: "${id}" }) {
-            id
-          }
+          addToCollection(input: { bookId: "${id}" }) { id }
         }
       `;
 
@@ -378,15 +340,19 @@ describe('Collection (e2e)', () => {
         .send({ query: addMutation(book2.id) });
     });
 
-    it('devrait retourner la collection de l\'utilisateur connecté', async () => {
+    it('devrait retourner un PaginatedUserBooksType', async () => {
       const query = `
         query {
           myCollection(page: 1, limit: 10) {
-            id
-            status
-            book {
-              title
+            items {
+              id
+              status
+              book { title }
             }
+            total
+            totalPages
+            hasNextPage
+            hasPreviousPage
           }
         }
       `;
@@ -398,8 +364,9 @@ describe('Collection (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.errors).toBeUndefined();
-      expect(response.body.data.myCollection).toHaveLength(2);
-      expect(response.body.data.myCollection[0].book).toBeDefined();
+      expect(response.body.data.myCollection.items).toHaveLength(2);
+      expect(response.body.data.myCollection.total).toBe(2);
+      expect(response.body.data.myCollection.items[0].book).toBeDefined();
     });
 
     it('devrait filtrer par statut', async () => {
@@ -408,9 +375,7 @@ describe('Collection (e2e)', () => {
           updateCollectionStatus(input: {
             bookId: "${bookId}"
             status: READ
-          }) {
-            id
-          }
+          }) { id }
         }
       `;
 
@@ -422,8 +387,11 @@ describe('Collection (e2e)', () => {
       const query = `
         query {
           myCollection(page: 1, limit: 10, status: READ) {
-            id
-            status
+            items {
+              id
+              status
+            }
+            total
           }
         }
       `;
@@ -435,15 +403,15 @@ describe('Collection (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.errors).toBeUndefined();
-      expect(response.body.data.myCollection).toHaveLength(1);
-      expect(response.body.data.myCollection[0].status).toBe('READ');
+      expect(response.body.data.myCollection.items).toHaveLength(1);
+      expect(response.body.data.myCollection.items[0].status).toBe('READ');
     });
 
     it('devrait refuser l\'accès sans token', async () => {
       const query = `
         query {
           myCollection(page: 1, limit: 10) {
-            id
+            items { id }
           }
         }
       `;
@@ -462,9 +430,7 @@ describe('Collection (e2e)', () => {
     beforeEach(async () => {
       const addMutation = `
         mutation {
-          addToCollection(input: { bookId: "${bookId}" }) {
-            id
-          }
+          addToCollection(input: { bookId: "${bookId}" }) { id }
         }
       `;
 
@@ -474,15 +440,19 @@ describe('Collection (e2e)', () => {
         .send({ query: addMutation });
     });
 
-    it('devrait retourner la collection d\'un utilisateur public', async () => {
+    it('devrait retourner un PaginatedUserBooksType pour un utilisateur public', async () => {
+      const targetUserId = otherUser.userId;
+
       const query = `
         query {
-          userCollection(userId: "${otherUser.userId}", page: 1, limit: 10) {
-            id
-            status
-            book {
-              title
+          userCollection(userId: "${targetUserId}", page: 1, limit: 10) {
+            items {
+              id
+              status
+              book { title }
             }
+            total
+            totalPages
           }
         }
       `;
@@ -494,15 +464,14 @@ describe('Collection (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.errors).toBeUndefined();
-      expect(response.body.data.userCollection).toHaveLength(1);
+      expect(response.body.data.userCollection.items).toHaveLength(1);
+      expect(response.body.data.userCollection.total).toBe(1);
     });
 
     it('devrait lever une erreur si le profil est privé', async () => {
       const updateMutation = `
         mutation {
-          updateProfile(input: { isPublic: false }) {
-            isPublic
-          }
+          updateProfile(input: { isPublic: false }) { isPublic }
         }
       `;
 
@@ -511,10 +480,12 @@ describe('Collection (e2e)', () => {
         .set(authHeader(otherUser.accessToken))
         .send({ query: updateMutation });
 
+      const targetUserId = otherUser.userId;
+
       const query = `
         query {
-          userCollection(userId: "${otherUser.userId}", page: 1, limit: 10) {
-            id
+          userCollection(userId: "${targetUserId}", page: 1, limit: 10) {
+            items { id }
           }
         }
       `;
@@ -530,9 +501,7 @@ describe('Collection (e2e)', () => {
     it('devrait retourner sa propre collection même si profil privé', async () => {
       const updateMutation = `
         mutation {
-          updateProfile(input: { isPublic: false }) {
-            isPublic
-          }
+          updateProfile(input: { isPublic: false }) { isPublic }
         }
       `;
 
@@ -541,11 +510,13 @@ describe('Collection (e2e)', () => {
         .set(authHeader(otherUser.accessToken))
         .send({ query: updateMutation });
 
+      const targetUserId = otherUser.userId;
+
       const query = `
         query {
-          userCollection(userId: "${otherUser.userId}", page: 1, limit: 10) {
-            id
-            status
+          userCollection(userId: "${targetUserId}", page: 1, limit: 10) {
+            items { id status }
+            total
           }
         }
       `;
@@ -557,14 +528,16 @@ describe('Collection (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.errors).toBeUndefined();
-      expect(response.body.data.userCollection).toHaveLength(1);
+      expect(response.body.data.userCollection.items).toHaveLength(1);
     });
 
     it('devrait refuser l\'accès sans token', async () => {
+      const targetUserId = otherUser.userId;
+
       const query = `
         query {
-          userCollection(userId: "${otherUser.userId}", page: 1, limit: 10) {
-            id
+          userCollection(userId: "${targetUserId}", page: 1, limit: 10) {
+            items { id }
           }
         }
       `;

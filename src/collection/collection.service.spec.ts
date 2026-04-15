@@ -268,10 +268,9 @@ describe('CollectionService', () => {
   // ─── getMyCollection ────────────────────────────────────────────
 
   describe('getMyCollection', () => {
-    it('devrait retourner la collection de l\'utilisateur connecté', async () => {
-      mockCollectionRepository.findByUserId.mockResolvedValue([
-        mockUserBookWithBook,
-      ]);
+    it('devrait retourner un PaginatedUserBooksType', async () => {
+      mockCollectionRepository.findByUserId.mockResolvedValue([mockUserBookWithBook]);
+      mockCollectionRepository.countByUserId.mockResolvedValue(1);
 
       const result = await collectionService.getMyCollection(
         'user-uuid-123',
@@ -279,19 +278,17 @@ describe('CollectionService', () => {
         10,
       );
 
-      expect(result).toHaveLength(1);
-      expect(result[0]?.book).toBeDefined();
-      expect(mockCollectionRepository.findByUserId).toHaveBeenCalledWith(
-        'user-uuid-123',
-        1,
-        10,
-        undefined,
-      );
-      expect(mockCollectionRepository.findByUserId).toHaveBeenCalledTimes(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+      expect(result.totalPages).toBe(1);
+      expect(result.hasNextPage).toBe(false);
+      expect(result.hasPreviousPage).toBe(false);
+      expect(result.items[0]?.book).toBeDefined();
     });
 
     it('devrait filtrer par statut si fourni', async () => {
       mockCollectionRepository.findByUserId.mockResolvedValue([]);
+      mockCollectionRepository.countByUserId.mockResolvedValue(0);
 
       await collectionService.getMyCollection(
         'user-uuid-123',
@@ -308,8 +305,9 @@ describe('CollectionService', () => {
       );
     });
 
-    it('devrait retourner un tableau vide si la collection est vide', async () => {
+    it('devrait retourner items vide si la collection est vide', async () => {
       mockCollectionRepository.findByUserId.mockResolvedValue([]);
+      mockCollectionRepository.countByUserId.mockResolvedValue(0);
 
       const result = await collectionService.getMyCollection(
         'user-uuid-123',
@@ -317,11 +315,13 @@ describe('CollectionService', () => {
         10,
       );
 
-      expect(result).toEqual([]);
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
     });
 
     it('devrait lever une erreur si le repository échoue', async () => {
       mockCollectionRepository.findByUserId.mockRejectedValue(repositoryError);
+      mockCollectionRepository.countByUserId.mockResolvedValue(0);
 
       await expect(
         collectionService.getMyCollection('user-uuid-123', 1, 10),
@@ -332,10 +332,9 @@ describe('CollectionService', () => {
   // ─── getUserCollection ──────────────────────────────────────────
 
   describe('getUserCollection', () => {
-    it('devrait retourner la collection d\'un utilisateur si son profil est public', async () => {
-      mockCollectionRepository.findByUserId.mockResolvedValue([
-        mockUserBookWithBook,
-      ]);
+    it('devrait retourner un PaginatedUserBooksType si profil public', async () => {
+      mockCollectionRepository.findByUserId.mockResolvedValue([mockUserBookWithBook]);
+      mockCollectionRepository.countByUserId.mockResolvedValue(1);
 
       const result = await collectionService.getUserCollection(
         'requester-uuid',
@@ -346,19 +345,13 @@ describe('CollectionService', () => {
         true,
       );
 
-      expect(result).toHaveLength(1);
-      expect(mockCollectionRepository.findByUserId).toHaveBeenCalledWith(
-        'user-uuid-123',
-        1,
-        10,
-        undefined,
-      );
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
     });
 
     it('devrait retourner la collection si le requester est le propriétaire', async () => {
-      mockCollectionRepository.findByUserId.mockResolvedValue([
-        mockUserBookWithBook,
-      ]);
+      mockCollectionRepository.findByUserId.mockResolvedValue([mockUserBookWithBook]);
+      mockCollectionRepository.countByUserId.mockResolvedValue(1);
 
       const result = await collectionService.getUserCollection(
         'user-uuid-123',
@@ -369,7 +362,7 @@ describe('CollectionService', () => {
         false,
       );
 
-      expect(result).toHaveLength(1);
+      expect(result.items).toHaveLength(1);
     });
 
     it('devrait lever une ForbiddenException si le profil est privé', async () => {
@@ -387,8 +380,9 @@ describe('CollectionService', () => {
       expect(mockCollectionRepository.findByUserId).not.toHaveBeenCalled();
     });
 
-    it('devrait retourner un tableau vide si la collection publique est vide', async () => {
+    it('devrait retourner items vide si collection publique vide', async () => {
       mockCollectionRepository.findByUserId.mockResolvedValue([]);
+      mockCollectionRepository.countByUserId.mockResolvedValue(0);
 
       const result = await collectionService.getUserCollection(
         'requester-uuid',
@@ -399,11 +393,13 @@ describe('CollectionService', () => {
         true,
       );
 
-      expect(result).toEqual([]);
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
     });
 
     it('devrait lever une erreur si le repository échoue', async () => {
       mockCollectionRepository.findByUserId.mockRejectedValue(repositoryError);
+      mockCollectionRepository.countByUserId.mockResolvedValue(0);
 
       await expect(
         collectionService.getUserCollection(

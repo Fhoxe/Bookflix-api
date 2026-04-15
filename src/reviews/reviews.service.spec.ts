@@ -120,9 +120,7 @@ describe('ReviewsService', () => {
 
   describe('createReview', () => {
     it('devrait créer une review et retourner un ReviewType', async () => {
-      mockCollectionService.getEntryByBookId.mockResolvedValue(
-        mockCollectionEntryRead,
-      );
+      mockCollectionService.getEntryByBookId.mockResolvedValue(mockCollectionEntryRead);
       mockReviewsRepository.findByUserIdAndBookId.mockResolvedValue(null);
       mockReviewsRepository.create.mockResolvedValue(mockReview);
 
@@ -150,9 +148,7 @@ describe('ReviewsService', () => {
     });
 
     it('devrait lever une BadRequestException si le statut n\'est pas READ', async () => {
-      mockCollectionService.getEntryByBookId.mockResolvedValue(
-        mockCollectionEntryReading,
-      );
+      mockCollectionService.getEntryByBookId.mockResolvedValue(mockCollectionEntryReading);
 
       await expect(
         reviewsService.createReview('user-uuid-123', mockCreateReviewInput),
@@ -162,9 +158,7 @@ describe('ReviewsService', () => {
     });
 
     it('devrait lever une ConflictException si une review existe déjà', async () => {
-      mockCollectionService.getEntryByBookId.mockResolvedValue(
-        mockCollectionEntryRead,
-      );
+      mockCollectionService.getEntryByBookId.mockResolvedValue(mockCollectionEntryRead);
       mockReviewsRepository.findByUserIdAndBookId.mockResolvedValue(mockReview);
 
       await expect(
@@ -175,9 +169,7 @@ describe('ReviewsService', () => {
     });
 
     it('devrait lever une erreur si le repository échoue', async () => {
-      mockCollectionService.getEntryByBookId.mockResolvedValue(
-        mockCollectionEntryRead,
-      );
+      mockCollectionService.getEntryByBookId.mockResolvedValue(mockCollectionEntryRead);
       mockReviewsRepository.findByUserIdAndBookId.mockResolvedValue(null);
       mockReviewsRepository.create.mockRejectedValue(repositoryError);
 
@@ -268,9 +260,7 @@ describe('ReviewsService', () => {
       );
 
       expect(result).toEqual(mockReviewType);
-      expect(mockReviewsRepository.delete).toHaveBeenCalledWith(
-        'review-uuid-123',
-      );
+      expect(mockReviewsRepository.delete).toHaveBeenCalledWith('review-uuid-123');
       expect(mockReviewsRepository.delete).toHaveBeenCalledTimes(1);
     });
 
@@ -307,31 +297,32 @@ describe('ReviewsService', () => {
   // ─── getBookReviews ─────────────────────────────────────────────
 
   describe('getBookReviews', () => {
-    it('devrait retourner les reviews d\'un livre', async () => {
+    it('devrait retourner un PaginatedReviewsType', async () => {
       mockReviewsRepository.findByBookId.mockResolvedValue([mockReviewWithBook]);
+      mockReviewsRepository.countByBookId.mockResolvedValue(1);
 
       const result = await reviewsService.getBookReviews('book-uuid-123', 1, 10);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]?.book).toBeDefined();
-      expect(mockReviewsRepository.findByBookId).toHaveBeenCalledWith(
-        'book-uuid-123',
-        1,
-        10,
-      );
-      expect(mockReviewsRepository.findByBookId).toHaveBeenCalledTimes(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+      expect(result.totalPages).toBe(1);
+      expect(result.hasNextPage).toBe(false);
+      expect(result.items[0]?.book).toBeDefined();
     });
 
-    it('devrait retourner un tableau vide si aucune review pour ce livre', async () => {
+    it('devrait retourner items vide si aucune review pour ce livre', async () => {
       mockReviewsRepository.findByBookId.mockResolvedValue([]);
+      mockReviewsRepository.countByBookId.mockResolvedValue(0);
 
       const result = await reviewsService.getBookReviews('book-uuid-123', 1, 10);
 
-      expect(result).toEqual([]);
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
     });
 
     it('devrait lever une erreur si le repository échoue', async () => {
       mockReviewsRepository.findByBookId.mockRejectedValue(repositoryError);
+      mockReviewsRepository.countByBookId.mockResolvedValue(0);
 
       await expect(
         reviewsService.getBookReviews('book-uuid-123', 1, 10),
@@ -342,31 +333,32 @@ describe('ReviewsService', () => {
   // ─── getUserReviews ─────────────────────────────────────────────
 
   describe('getUserReviews', () => {
-    it('devrait retourner les reviews d\'un utilisateur', async () => {
+    it('devrait retourner un PaginatedReviewsType', async () => {
       mockReviewsRepository.findByUserId.mockResolvedValue([mockReviewWithBook]);
+      mockReviewsRepository.countByUserId.mockResolvedValue(1);
 
       const result = await reviewsService.getUserReviews('user-uuid-123', 1, 10);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]?.book).toBeDefined();
-      expect(mockReviewsRepository.findByUserId).toHaveBeenCalledWith(
-        'user-uuid-123',
-        1,
-        10,
-      );
-      expect(mockReviewsRepository.findByUserId).toHaveBeenCalledTimes(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+      expect(result.totalPages).toBe(1);
+      expect(result.hasNextPage).toBe(false);
+      expect(result.items[0]?.book).toBeDefined();
     });
 
-    it('devrait retourner un tableau vide si l\'utilisateur n\'a pas de reviews', async () => {
+    it('devrait retourner items vide si l\'utilisateur n\'a pas de reviews', async () => {
       mockReviewsRepository.findByUserId.mockResolvedValue([]);
+      mockReviewsRepository.countByUserId.mockResolvedValue(0);
 
       const result = await reviewsService.getUserReviews('user-uuid-123', 1, 10);
 
-      expect(result).toEqual([]);
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
     });
 
     it('devrait lever une erreur si le repository échoue', async () => {
       mockReviewsRepository.findByUserId.mockRejectedValue(repositoryError);
+      mockReviewsRepository.countByUserId.mockResolvedValue(0);
 
       await expect(
         reviewsService.getUserReviews('user-uuid-123', 1, 10),

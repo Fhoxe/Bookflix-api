@@ -5,6 +5,7 @@ import { BooksRepository } from './books.repository.js';
 import { GoogleBooksService } from './google-books.service.js';
 import { CreateBookInput } from './dto/create-book.input.js';
 import { BookType } from './dto/book.type.js';
+import { PaginatedBooksType } from './dto/paginated-books.type.js';
 
 // ─── Mocks ────────────────────────────────────────────────────────
 
@@ -112,7 +113,7 @@ describe('BooksService', () => {
   // ─── searchBooks ────────────────────────────────────────────────
 
   describe('searchBooks', () => {
-    it('devrait rechercher, upsert et retourner des BookType', async () => {
+    it('devrait rechercher, upsert et retourner un PaginatedBooksType', async () => {
       mockGoogleBooksService.searchBooks.mockResolvedValue([mockMappedBook]);
       mockBooksRepository.upsertFromGoogle.mockResolvedValue(mockPrismaBook);
 
@@ -121,8 +122,12 @@ describe('BooksService', () => {
         maxResults: 10,
       });
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual(mockBookType);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toEqual(mockBookType);
+      expect(result.total).toBe(1);
+      expect(result.totalPages).toBe(1);
+      expect(result.hasNextPage).toBe(false);
+      expect(result.hasPreviousPage).toBe(false);
       expect(mockGoogleBooksService.searchBooks).toHaveBeenCalledWith(
         'Clean Code',
         10,
@@ -131,7 +136,7 @@ describe('BooksService', () => {
       expect(mockBooksRepository.upsertFromGoogle).toHaveBeenCalledTimes(1);
     });
 
-    it('devrait retourner un tableau vide si Google Books ne retourne rien', async () => {
+    it('devrait retourner un résultat vide si Google Books ne retourne rien', async () => {
       mockGoogleBooksService.searchBooks.mockResolvedValue([]);
 
       const result = await booksService.searchBooks({
@@ -139,7 +144,8 @@ describe('BooksService', () => {
         maxResults: 10,
       });
 
-      expect(result).toEqual([]);
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
       expect(mockBooksRepository.upsertFromGoogle).not.toHaveBeenCalled();
     });
 
@@ -166,15 +172,12 @@ describe('BooksService', () => {
         maxResults: 10,
       });
 
-      expect(result[0]?.googleBooksId).toBeUndefined();
-      expect(result[0]?.description).toBeUndefined();
-      expect(result[0]?.publishedYear).toBeUndefined();
-      expect(result[0]?.genre).toBeUndefined();
-      expect(result[0]?.coverUrl).toBeUndefined();
-      expect(result[0]?.isbn).toBeUndefined();
+      expect(result.items[0]?.googleBooksId).toBeUndefined();
+      expect(result.items[0]?.description).toBeUndefined();
+      expect(result.items[0]?.publishedYear).toBeUndefined();
     });
 
-    it("devrait lever une erreur si l'upsert échoue", async () => {
+    it('devrait lever une erreur si l\'upsert échoue', async () => {
       mockGoogleBooksService.searchBooks.mockResolvedValue([mockMappedBook]);
       mockBooksRepository.upsertFromGoogle.mockRejectedValue(repositoryError);
 
@@ -187,25 +190,56 @@ describe('BooksService', () => {
   // ─── findAll ────────────────────────────────────────────────────
 
   describe('findAll', () => {
-    it('devrait retourner une liste paginée de BookType', async () => {
+    it('devrait retourner un PaginatedBooksType', async () => {
       mockBooksRepository.findAll.mockResolvedValue([mockPrismaBook]);
+      mockBooksRepository.countAll.mockResolvedValue(1);
 
       const result = await booksService.findAll(1, 10);
 
-      expect(result).toEqual([mockBookType]);
-      expect(mockBooksRepository.findAll).toHaveBeenCalledWith(1, 10);
+      expect(result.items).toEqual([mockBookType]);
+      expect(result.total).toBe(1);
+      expect(result.page).toBe(1);
+      expect(result.limit).toBe(10);
+      expect(result.totalPages).toBe(1);
+      expect(result.hasNextPage).toBe(false);
+      expect(result.hasPreviousPage).toBe(false);
     });
 
-    it('devrait retourner un tableau vide si aucun livre en base', async () => {
-      mockBooksRepository.findAll.mockResolvedValue([]);
+    it('devrait calculer hasNextPage correctement', async () => {
+      mockBooksRepository.findAll.mockResolvedValue([mockPrismaBook]);
+      mockBooksRepository.countAll.mockResolvedValue(25);
 
       const result = await booksService.findAll(1, 10);
 
-      expect(result).toEqual([]);
+      expect(result.totalPages).toBe(3);
+      expect(result.hasNextPage).toBe(true);
+      expect(result.hasPreviousPage).toBe(false);
+    });
+
+    it('devrait calculer hasPreviousPage correctement', async () => {
+      mockBooksRepository.findAll.mockResolvedValue([mockPrismaBook]);
+      mockBooksRepository.countAll.mockResolvedValue(25);
+
+      const result = await booksService.findAll(2, 10);
+
+      expect(result.hasPreviousPage).toBe(true);
+      expect(result.hasNextPage).toBe(true);
+    });
+
+    it('devrait retourner items vide si aucun livre en base', async () => {
+      mockBooksRepository.findAll.mockResolvedValue([]);
+      mockBooksRepository.countAll.mockResolvedValue(0);
+
+      const result = await booksService.findAll(1, 10);
+
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
+      expect(result.totalPages).toBe(0);
     });
 
     it('devrait lever une erreur si le repository échoue', async () => {
       mockBooksRepository.findAll.mockRejectedValue(repositoryError);
+      mockBooksRepository.countAll.mockResolvedValue(0);
 
       await expect(booksService.findAll(1, 10)).rejects.toThrow(
         'Erreur base de données',
@@ -245,29 +279,30 @@ describe('BooksService', () => {
   // ─── findByGenre ────────────────────────────────────────────────
 
   describe('findByGenre', () => {
-    it('devrait retourner les BookType du genre demandé', async () => {
+    it('devrait retourner un PaginatedBooksType pour un genre', async () => {
       mockBooksRepository.findByGenre.mockResolvedValue([mockPrismaBook]);
+      mockBooksRepository.countByGenre.mockResolvedValue(1);
 
       const result = await booksService.findByGenre('Informatique', 1, 10);
 
-      expect(result).toEqual([mockBookType]);
-      expect(mockBooksRepository.findByGenre).toHaveBeenCalledWith(
-        'Informatique',
-        1,
-        10,
-      );
+      expect(result.items).toEqual([mockBookType]);
+      expect(result.total).toBe(1);
+      expect(result.totalPages).toBe(1);
     });
 
-    it('devrait retourner un tableau vide si aucun livre pour ce genre', async () => {
+    it('devrait retourner items vide si aucun livre pour ce genre', async () => {
       mockBooksRepository.findByGenre.mockResolvedValue([]);
+      mockBooksRepository.countByGenre.mockResolvedValue(0);
 
       const result = await booksService.findByGenre('GenreInexistant', 1, 10);
 
-      expect(result).toEqual([]);
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
     });
 
     it('devrait lever une erreur si le repository échoue', async () => {
       mockBooksRepository.findByGenre.mockRejectedValue(repositoryError);
+      mockBooksRepository.countByGenre.mockResolvedValue(0);
 
       await expect(
         booksService.findByGenre('Informatique', 1, 10),

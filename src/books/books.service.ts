@@ -5,6 +5,8 @@ import { GoogleBooksService } from './google-books.service.js';
 import { SearchBooksInput } from './dto/search-books.input.js';
 import { CreateBookInput } from './dto/create-book.input.js';
 import { BookType } from './dto/book.type.js';
+import { PaginatedBooksType } from './dto/paginated-books.type.js';
+import { buildPaginationMeta } from '../common/helpers/pagination.helper.js';
 
 @Injectable()
 export class BooksService {
@@ -13,23 +15,35 @@ export class BooksService {
     private readonly googleBooksService: GoogleBooksService,
   ) {}
 
-  async searchBooks(input: SearchBooksInput): Promise<BookType[]> {
+  async searchBooks(input: SearchBooksInput): Promise<PaginatedBooksType> {
     const results = await this.googleBooksService.searchBooks(
       input.query,
       input.maxResults ?? 10,
       input.genre,
     );
 
-    const upsertedBooks = await Promise.all(
+    const items = await Promise.all(
       results.map((book) => this.booksRepository.upsertFromGoogle(book)),
     );
 
-    return upsertedBooks.map(this.toBookType);
+    const mappedItems = items.map(this.toBookType);
+
+    return {
+      items: mappedItems,
+      ...buildPaginationMeta(mappedItems.length, 1, mappedItems.length || 1),
+    };
   }
 
-  async findAll(page: number, limit: number): Promise<BookType[]> {
-    const books = await this.booksRepository.findAll(page, limit);
-    return books.map(this.toBookType);
+  async findAll(page: number, limit: number): Promise<PaginatedBooksType> {
+    const [books, total] = await Promise.all([
+      this.booksRepository.findAll(page, limit),
+      this.booksRepository.countAll(),
+    ]);
+
+    return {
+      items: books.map(this.toBookType),
+      ...buildPaginationMeta(total, page, limit),
+    };
   }
 
   async findById(id: string): Promise<BookType> {
@@ -42,9 +56,20 @@ export class BooksService {
     return this.toBookType(book);
   }
 
-  async findByGenre(genre: string, page: number, limit: number): Promise<BookType[]> {
-    const books = await this.booksRepository.findByGenre(genre, page, limit);
-    return books.map(this.toBookType);
+  async findByGenre(
+    genre: string,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedBooksType> {
+    const [books, total] = await Promise.all([
+      this.booksRepository.findByGenre(genre, page, limit),
+      this.booksRepository.countByGenre(genre),
+    ]);
+
+    return {
+      items: books.map(this.toBookType),
+      ...buildPaginationMeta(total, page, limit),
+    };
   }
 
   async countAll(): Promise<number> {
