@@ -49,6 +49,25 @@ export class BooksRepository {
     });
   }
 
+  async getAverageRating(bookId: string): Promise<number | null> {
+    const result = await this.prisma.review.aggregate({
+      where: { bookId },
+      _avg: { rating: true },
+      _count: { rating: true },
+    });
+
+    if (result._count.rating === 0) return null;
+
+    const avg = result._avg.rating;
+    if (avg === null) return null;
+
+    return Math.round(avg * 10) / 10;
+  }
+
+  async getReviewCount(bookId: string): Promise<number> {
+    return this.prisma.review.count({ where: { bookId } });
+  }
+
   async upsertFromGoogle(book: MappedBook): Promise<Book> {
     return this.prisma.book.upsert({
       where: { googleBooksId: book.googleBooksId },

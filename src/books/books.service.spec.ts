@@ -49,6 +49,8 @@ const mockBookType: BookType = {
   genre: 'Informatique',
   coverUrl: 'https://example.com/cover.jpg',
   isbn: '9780132350884',
+  averageRating: 4.5,
+  reviewCount: 10,
   lastSyncedAt: mockPrismaBook.lastSyncedAt,
   createdAt: mockPrismaBook.createdAt,
   updatedAt: mockPrismaBook.updatedAt,
@@ -83,6 +85,8 @@ const mockBooksRepository = {
   countByGenre: jest.fn(),
   upsertFromGoogle: jest.fn(),
   create: jest.fn(),
+  getAverageRating: jest.fn().mockResolvedValue(4.5),
+  getReviewCount: jest.fn().mockResolvedValue(10),
 };
 
 const mockGoogleBooksService = {
@@ -386,6 +390,32 @@ describe('BooksService', () => {
       await expect(
         booksService.createBook(mockCreateBookInput),
       ).rejects.toThrow('Erreur base de données');
+    });
+  });
+
+  // ─── averageRating et reviewCount ───────────────────────────────
+
+  describe('toBookType (averageRating + reviewCount)', () => {
+    it('devrait inclure averageRating et reviewCount dans le BookType', async () => {
+      mockBooksRepository.findById.mockResolvedValue(mockPrismaBook);
+      mockBooksRepository.getAverageRating.mockResolvedValue(4.5);
+      mockBooksRepository.getReviewCount.mockResolvedValue(10);
+
+      const result = await booksService.findById('uuid-123');
+
+      expect(result.averageRating).toBe(4.5);
+      expect(result.reviewCount).toBe(10);
+    });
+
+    it('devrait retourner averageRating undefined si aucune review', async () => {
+      mockBooksRepository.findById.mockResolvedValue(mockPrismaBook);
+      mockBooksRepository.getAverageRating.mockResolvedValue(null);
+      mockBooksRepository.getReviewCount.mockResolvedValue(0);
+
+      const result = await booksService.findById('uuid-123');
+
+      expect(result.averageRating).toBeUndefined();
+      expect(result.reviewCount).toBe(0);
     });
   });
 });

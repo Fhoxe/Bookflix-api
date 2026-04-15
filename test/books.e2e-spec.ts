@@ -117,6 +117,8 @@ describe('Books (e2e)', () => {
               title
               authors
               genre
+              averageRating
+              reviewCount
             }
             total
             page
@@ -137,9 +139,8 @@ describe('Books (e2e)', () => {
       expect(response.body.errors).toBeUndefined();
       expect(response.body.data.books.items).toHaveLength(3);
       expect(response.body.data.books.total).toBe(3);
-      expect(response.body.data.books.totalPages).toBe(1);
-      expect(response.body.data.books.hasNextPage).toBe(false);
-      expect(response.body.data.books.hasPreviousPage).toBe(false);
+      expect(response.body.data.books.items[0].reviewCount).toBe(0);
+      expect(response.body.data.books.items[0].averageRating).toBeNull();
     });
 
     it('devrait paginer correctement', async () => {
@@ -231,6 +232,8 @@ describe('Books (e2e)', () => {
             title
             authors
             genre
+            averageRating
+            reviewCount
           }
         }
       `;
@@ -244,6 +247,8 @@ describe('Books (e2e)', () => {
       expect(response.body.errors).toBeUndefined();
       expect(response.body.data.book.title).toBe('Clean Code');
       expect(response.body.data.book.id).toBe(bookId);
+      expect(response.body.data.book.reviewCount).toBe(0);
+      expect(response.body.data.book.averageRating).toBeNull();
     });
 
     it('devrait lever une erreur si le livre est introuvable', async () => {

@@ -289,4 +289,89 @@ describe('BooksRepository', () => {
       ).rejects.toThrow('Erreur base de données');
     });
   });
+  
+  // ─── getAverageRating ───────────────────────────────────────────
+
+  describe('getAverageRating', () => {
+    it('devrait retourner la moyenne des notes arrondie à 1 décimale', async () => {
+      mockPrismaService.review = {
+        aggregate: jest.fn().mockResolvedValue({
+          _avg: { rating: 4.35 },
+          _count: { rating: 2 },
+        }),
+        count: jest.fn(),
+      };
+
+      const result = await booksRepository.getAverageRating('book-uuid-123');
+
+      expect(result).toBe(4.4);
+    });
+
+    it('devrait retourner null si aucune review', async () => {
+      mockPrismaService.review = {
+        aggregate: jest.fn().mockResolvedValue({
+          _avg: { rating: null },
+          _count: { rating: 0 },
+        }),
+        count: jest.fn(),
+      };
+
+      const result = await booksRepository.getAverageRating('book-uuid-123');
+
+      expect(result).toBeNull();
+    });
+
+    it('devrait lever une erreur si Prisma échoue', async () => {
+      mockPrismaService.review = {
+        aggregate: jest.fn().mockRejectedValue(prismaError),
+        count: jest.fn(),
+      };
+
+      await expect(
+        booksRepository.getAverageRating('book-uuid-123'),
+      ).rejects.toThrow('Erreur base de données');
+    });
+  });
+
+  // ─── getReviewCount ─────────────────────────────────────────────
+
+  describe('getReviewCount', () => {
+    it('devrait retourner le nombre de reviews d\'un livre', async () => {
+      mockPrismaService.review = {
+        aggregate: jest.fn(),
+        count: jest.fn().mockResolvedValue(5),
+      };
+
+      const result = await booksRepository.getReviewCount('book-uuid-123');
+
+      expect(result).toBe(5);
+      expect(mockPrismaService.review.count).toHaveBeenCalledWith({
+        where: { bookId: 'book-uuid-123' },
+      });
+      expect(mockPrismaService.review.count).toHaveBeenCalledTimes(1);
+    });
+
+    it('devrait retourner 0 si aucune review', async () => {
+      mockPrismaService.review = {
+        aggregate: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
+      };
+
+      const result = await booksRepository.getReviewCount('book-uuid-123');
+
+      expect(result).toBe(0);
+    });
+
+    it('devrait lever une erreur si Prisma échoue', async () => {
+      mockPrismaService.review = {
+        aggregate: jest.fn(),
+        count: jest.fn().mockRejectedValue(prismaError),
+      };
+
+      await expect(
+        booksRepository.getReviewCount('book-uuid-123'),
+      ).rejects.toThrow('Erreur base de données');
+    });
+  });
 });
+

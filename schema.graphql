@@ -15,6 +15,7 @@ type AuthResponse {
 
 type BookType {
   authors: String!
+  averageRating: Float
   coverUrl: String
   createdAt: DateTime!
   description: String
@@ -24,6 +25,7 @@ type BookType {
   isbn: String
   lastSyncedAt: DateTime!
   publishedYear: Int
+  reviewCount: Int!
   title: String!
   updatedAt: DateTime!
 }

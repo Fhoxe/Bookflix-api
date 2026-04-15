@@ -22,15 +22,17 @@ export class BooksService {
       input.genre,
     );
 
-    const items = await Promise.all(
+    const upsertedBooks = await Promise.all(
       results.map((book) => this.booksRepository.upsertFromGoogle(book)),
     );
 
-    const mappedItems = items.map(this.toBookType);
+    const items = await Promise.all(
+      upsertedBooks.map((book) => this.toBookType(book)),
+    );
 
     return {
-      items: mappedItems,
-      ...buildPaginationMeta(mappedItems.length, 1, mappedItems.length || 1),
+      items,
+      ...buildPaginationMeta(items.length, 1, items.length || 1),
     };
   }
 
@@ -40,8 +42,10 @@ export class BooksService {
       this.booksRepository.countAll(),
     ]);
 
+    const items = await Promise.all(books.map((book) => this.toBookType(book)));
+
     return {
-      items: books.map(this.toBookType),
+      items,
       ...buildPaginationMeta(total, page, limit),
     };
   }
@@ -66,8 +70,10 @@ export class BooksService {
       this.booksRepository.countByGenre(genre),
     ]);
 
+    const items = await Promise.all(books.map((book) => this.toBookType(book)));
+
     return {
-      items: books.map(this.toBookType),
+      items,
       ...buildPaginationMeta(total, page, limit),
     };
   }
@@ -85,7 +91,12 @@ export class BooksService {
     return this.toBookType(book);
   }
 
-  private toBookType(book: Book): BookType {
+  private async toBookType(book: Book): Promise<BookType> {
+    const [averageRating, reviewCount] = await Promise.all([
+      this.booksRepository.getAverageRating(book.id),
+      this.booksRepository.getReviewCount(book.id),
+    ]);
+
     return {
       id: book.id,
       title: book.title,
@@ -93,6 +104,8 @@ export class BooksService {
       lastSyncedAt: book.lastSyncedAt,
       createdAt: book.createdAt,
       updatedAt: book.updatedAt,
+      reviewCount,
+      averageRating: averageRating ?? undefined,
       googleBooksId: book.googleBooksId ?? undefined,
       description: book.description ?? undefined,
       publishedYear: book.publishedYear ?? undefined,

@@ -1,4 +1,4 @@
-import { ObjectType, Field, Int } from '@nestjs/graphql';
+import { ObjectType, Field, Int, Float } from '@nestjs/graphql';
 
 @ObjectType()
 export class BookType {
@@ -28,6 +28,12 @@ export class BookType {
 
   @Field({ nullable: true })
   isbn?: string;
+
+  @Field(() => Float, { nullable: true })
+  averageRating?: number;
+
+  @Field(() => Int)
+  reviewCount!: number;
 
   @Field()
   lastSyncedAt!: Date;
