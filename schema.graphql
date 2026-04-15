@@ -63,6 +63,7 @@ type Mutation {
   register(input: RegisterInput!): AuthResponse!
   removeFromCollection(bookId: String!): UserBookType!
   updateCollectionStatus(input: UpdateCollectionStatusInput!): UserBookType!
+  updateProfile(input: UpdateProfileInput!): UserProfileType!
   updateReview(id: String!, input: UpdateReviewInput!): ReviewType!
 }
 
@@ -72,9 +73,10 @@ type Query {
   books(limit: Int! = 10, page: Int! = 1): [BookType!]!
   booksByGenre(genre: String!, limit: Int! = 10, page: Int! = 1): [BookType!]!
   healthcheck: String!
-  me: String!
+  me: UserProfileType!
   myCollection(limit: Int! = 10, page: Int! = 1, status: ReadingStatus): [UserBookType!]!
   searchBooks(input: SearchBooksInput!): [BookType!]!
+  user(id: String!): UserType!
   userCollection(limit: Int! = 10, page: Int! = 1, status: ReadingStatus, userId: String!): [UserBookType!]!
   userReviews(limit: Int! = 10, page: Int! = 1, userId: String!): [ReviewType!]!
 }
@@ -119,6 +121,12 @@ input UpdateCollectionStatusInput {
   status: ReadingStatus!
 }
 
+input UpdateProfileInput {
+  avatar: String
+  bio: String
+  isPublic: Boolean
+}
+
 input UpdateReviewInput {
   comment: String
   rating: Int
@@ -132,4 +140,24 @@ type UserBookType {
   status: ReadingStatus!
   updatedAt: DateTime!
   userId: String!
+}
+
+type UserProfileType {
+  avatar: String
+  bio: String
+  createdAt: DateTime!
+  email: String!
+  id: String!
+  isPublic: Boolean!
+  updatedAt: DateTime!
+  username: String!
+}
+
+type UserType {
+  avatar: String
+  bio: String
+  createdAt: DateTime!
+  id: String!
+  isPublic: Boolean!
+  username: String!
 }
