@@ -2,6 +2,8 @@
 
 API GraphQL de bibliothèque numérique permettant de gérer une collection personnelle de livres, avec recherche via Google Books, système de reviews et gestion de profils utilisateurs.
 
+**URL de production** : `https://bookflix-api-production.up.railway.app/graphql`
+
 ---
 
 ## Stack technique
@@ -11,8 +13,11 @@ API GraphQL de bibliothèque numérique permettant de gérer une collection pers
 - **API** : GraphQL Code First (@nestjs/graphql + Apollo Server 5)
 - **ORM** : Prisma 7 + PostgreSQL 16
 - **Auth** : JWT + Passport
-- **Tests** : Jest + SWC
+- **Compiler** : SWC (dev) + tsc (prod)
+- **Tests** : Jest + SWC (219 unitaires + 76 e2e)
+- **Sécurité** : Helmet + CORS + Rate Limiting
 - **Docker** : API + PostgreSQL + Adminer
+- **Déploiement** : Railway
 
 ---
 
@@ -58,6 +63,11 @@ POSTGRES_USER=bookflix
 POSTGRES_PASSWORD=bookflix_secret
 POSTGRES_DB=bookflix_db
 
+# Database Test
+DATABASE_URL_TEST="postgresql://bookflix_test:bookflix_test_secret@localhost:5433/bookflix_test?schema=public"
+POSTGRES_USER_TEST=bookflix_test
+POSTGRES_PASSWORD_TEST=bookflix_test_secret
+
 # JWT
 JWT_SECRET=change_this_in_production
 JWT_EXPIRES_IN=7d
@@ -65,6 +75,11 @@ JWT_EXPIRES_IN=7d
 # Google Books API
 GOOGLE_BOOKS_API_KEY=your_google_books_api_key_here
 GOOGLE_BOOKS_API_URL=https://www.googleapis.com/books/v1
+
+# Security
+FRONTEND_URL=http://localhost:4200
+THROTTLE_TTL=900000
+THROTTLE_LIMIT=100
 ```
 
 > **Google Books API Key** : obtiens une clé gratuite sur [Google Cloud Console](https://console.cloud.google.com/) en activant l'API "Books API".
@@ -85,19 +100,19 @@ docker compose up postgres -d
 npx prisma migrate dev
 ```
 
-### 3. Peupler la base de données (optionnel)
+### 3. Générer le client Prisma
+
+```bash
+npx prisma generate
+```
+
+### 4. Peupler la base de données (optionnel)
 
 ```bash
 npm run prisma:seed
 ```
 
 > Le seed insère ~277 livres répartis sur 15 genres via Google Books API.
-
-### 4. Générer le client Prisma
-
-```bash
-npx prisma generate
-```
 
 ### 5. Démarrer l'API
 
@@ -133,13 +148,56 @@ npm run test:watch
 
 # Couverture de code
 npm run test:cov
+
+# Tests e2e (nécessite postgres-test sur le port 5433)
+docker compose up postgres-test -d
+npm run test:e2e
 ```
+
+### Résultats
+
+| Type | Total | Status |
+|---|---|---|
+| Unitaires | 219 | ✅ |
+| E2E | 76 | ✅ |
+| **Total** | **295** | ✅ |
 
 ---
 
 ## Schéma GraphQL
 
 Le schéma est généré automatiquement au démarrage dans `schema.graphql`.
+
+---
+
+## Fonctionnalités
+
+### Authentification
+- Inscription / Connexion avec JWT
+- Token valable 7 jours
+- Rate limiting : 100 requêtes / 15 minutes par IP
+
+### Livres
+- Recherche via Google Books API (mise en cache en DB)
+- Recherche avancée par titre, auteur, genre, plage d'années
+- Recherche locale dans le cache DB
+- Catalogue par genre (15 genres en français)
+- Pagination avec metadata (total, totalPages, hasNextPage, hasPreviousPage)
+- Note moyenne et nombre de reviews par livre
+
+### Collection personnelle
+- Statuts : `TO_READ`, `READING`, `READ`
+- Consultation publique/privée selon le profil utilisateur
+- Filtrage par statut
+
+### Reviews
+- Note de 1 à 5 étoiles + commentaire optionnel
+- Création uniquement si statut `READ`
+- Une seule review par livre par utilisateur
+
+### Utilisateurs
+- Profils publics/privés
+- Mise à jour bio, avatar, visibilité
 
 ---
 
@@ -185,19 +243,67 @@ mutation Login {
 
 ### Livres
 
-#### Rechercher des livres
+#### Rechercher des livres (Google Books)
 ```graphql
 query SearchBooks {
   searchBooks(input: {
     query: "Clean Code"
     maxResults: 10
   }) {
-    id
-    title
-    authors
-    genre
-    coverUrl
-    publishedYear
+    items {
+      id
+      title
+      authors
+      genre
+      coverUrl
+      publishedYear
+      averageRating
+      reviewCount
+    }
+    total
+    totalPages
+    hasNextPage
+  }
+}
+```
+
+#### Recherche avancée
+```graphql
+query SearchAdvanced {
+  searchBooks(input: {
+    author: "Robert Martin"
+    title: "Clean"
+    genre: "Technologie"
+    yearFrom: 2000
+    yearTo: 2020
+    maxResults: 10
+  }) {
+    items {
+      id
+      title
+      authors
+      publishedYear
+    }
+    total
+  }
+}
+```
+
+#### Recherche dans le cache DB
+```graphql
+query SearchLocal {
+  searchLocalBooks(
+    input: { query: "Clean Code" }
+    page: 1
+    limit: 10
+  ) {
+    items {
+      id
+      title
+      authors
+    }
+    total
+    totalPages
   }
 }
 ```
@@ -206,10 +312,18 @@ query SearchBooks {
 ```graphql
 query Books {
   books(page: 1, limit: 10) {
-    id
-    title
-    authors
-    genre
+    items {
+      id
+      title
+      authors
+      genre
+      averageRating
+      reviewCount
+    }
+    total
+    totalPages
+    hasNextPage
+    hasPreviousPage
   }
 }
 ```
@@ -218,10 +332,15 @@ query Books {
 ```graphql
 query BooksByGenre {
   booksByGenre(genre: "Fiction", page: 1, limit: 10) {
-    id
-    title
-    authors
-    coverUrl
+    items {
+      id
+      title
+      authors
+      coverUrl
+      averageRating
+    }
+    total
+    totalPages
   }
 }
 ```
@@ -238,6 +357,8 @@ query Book {
     genre
     coverUrl
     isbn
+    averageRating
+    reviewCount
   }
 }
 ```
@@ -293,12 +414,17 @@ mutation UpdateStatus {
 ```graphql
 query MyCollection {
   myCollection(page: 1, limit: 10, status: READ) {
-    id
-    status
-    book {
-      title
-      authors
+    items {
+      id
+      status
+      book {
+        title
+        authors
+        averageRating
+      }
     }
+    total
+    totalPages
   }
 }
 ```
@@ -306,13 +432,20 @@ query MyCollection {
 #### Collection d'un utilisateur public
 ```graphql
 query UserCollection {
-  userCollection(userId: "uuid-utilisateur", page: 1, limit: 10) {
-    id
-    status
-    book {
-      title
-      authors
+  userCollection(
+    userId: "uuid-utilisateur"
+    page: 1
+    limit: 10
+  ) {
+    items {
+      id
+      status
+      book {
+        title
+        authors
+      }
     }
+    total
   }
 }
 ```
@@ -346,15 +479,37 @@ mutation CreateReview {
 }
 ```
 
-#### Reviews d'un livre
+#### Reviews d'un livre (paginées)
 ```graphql
 query BookReviews {
   bookReviews(bookId: "uuid-du-livre", page: 1, limit: 10) {
-    id
-    rating
-    comment
-    userId
-    createdAt
+    items {
+      id
+      rating
+      comment
+      userId
+      createdAt
+    }
+    total
+    totalPages
+  }
+}
+```
+
+#### Reviews d'un utilisateur
+```graphql
+query UserReviews {
+  userReviews(userId: "uuid-utilisateur", page: 1, limit: 10) {
+    items {
+      id
+      rating
+      comment
+      book {
+        title
+        authors
+      }
+    }
+    total
   }
 }
 ```
@@ -396,6 +551,8 @@ query Me {
     bio
     avatar
     isPublic
+    createdAt
+    updatedAt
   }
 }
 ```
@@ -408,6 +565,7 @@ query User {
     username
     bio
     isPublic
+    createdAt
   }
 }
 ```
@@ -417,6 +575,7 @@ query User {
 mutation UpdateProfile {
   updateProfile(input: {
     bio: "Passionné de lecture"
+    avatar: "https://example.com/avatar.jpg"
     isPublic: true
   }) {
     id
@@ -428,9 +587,62 @@ mutation UpdateProfile {
 
 ---
 
+## Statuts de lecture
+
+| Statut | Description |
+|---|---|
+| `TO_READ` | À lire |
+| `READING` | En cours de lecture |
+| `READ` | Lu ✓ (débloque les reviews) |
+
+---
+
+## Genres disponibles (seed)
+
+Fiction, Science, Histoire, Technologie, Biographie, Philosophie, Art, Cuisine, Voyage, Musique, Psychologie, Économie, Politique, Religion, Sport
+
+---
+
+## Architecture
+
+```
+src/
+├── auth/               # Authentification JWT
+│   ├── decorators/     # @CurrentUser
+│   ├── dto/            # RegisterInput, LoginInput, AuthResponse
+│   ├── guards/         # JwtAuthGuard, GqlThrottlerGuard
+│   └── strategies/     # JwtStrategy
+├── books/              # Livres + Google Books API
+│   └── dto/            # BookType, SearchBooksInput, PaginatedBooksType
+├── collection/         # Collection personnelle
+│   └── dto/            # UserBookType, PaginatedUserBooksType
+├── common/             # Utilitaires partagés
+│   ├── dto/            # Paginated<T>, PaginationArgs
+│   └── helpers/        # buildPaginationMeta
+├── reviews/            # Reviews et notes
+│   └── dto/            # ReviewType, PaginatedReviewsType
+├── users/              # Profils utilisateurs
+│   └── dto/            # UserType, UserProfileType
+└── prisma/             # Service Prisma global
+prisma/
+├── schema.prisma       # Modèles de données
+├── prisma.config.ts    # Configuration Prisma 7
+├── seed.ts             # Script de seed (277 livres)
+└── migrations/         # Historique des migrations
+test/
+├── helpers/            # createTestApp, cleanDatabase, auth helpers
+├── auth.e2e-spec.ts
+├── books.e2e-spec.ts
+├── collection.e2e-spec.ts
+├── reviews.e2e-spec.ts
+└── users.e2e-spec.ts
+```
+
+---
+
 ## Compte de test
 
-Lance le seed puis crée un compte via la mutation `register` :
+Crée un compte via la mutation `register` :
 
 ```graphql
 mutation {
@@ -448,29 +660,18 @@ mutation {
 
 ---
 
-## Architecture
+## API en production
 
-src/
-├── auth/          # Authentification JWT
-├── books/         # Livres + Google Books API
-├── collection/    # Collection personnelle
-├── reviews/       # Reviews et notes
-├── users/         # Profils utilisateurs
-└── prisma/        # Service Prisma global
-prisma/
-├── schema.prisma  # Modèles de données
-├── seed.ts        # Script de seed
-└── migrations/    # Historique des migrations
+L'API est déployée sur Railway :
 
----
+**URL** : `https://bookflix-api-production.up.railway.app/graphql`
 
-## Statuts de lecture
-
-| Statut | Description |
-|--------|-------------|
-| `TO_READ` | À lire |
-| `READING` | En cours de lecture |
-| `READ` | Lu ✓ (débloque les reviews) |
+Test rapide :
+```bash
+curl -X POST https://bookflix-api-production.up.railway.app/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query": "{ healthcheck }"}'
+```
 
 ---
 
