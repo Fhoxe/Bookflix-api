@@ -2,8 +2,6 @@
 
 API GraphQL de bibliothèque numérique permettant de gérer une collection personnelle de livres, avec recherche via Google Books, système de reviews et gestion de profils utilisateurs.
 
-**URL de production** : `https://bookflix-api-production.up.railway.app/graphql`
-
 ---
 
 ## Stack technique
@@ -55,16 +53,16 @@ cp .env.example .env
 ```env
 # App
 NODE_ENV=development
-PORT=3000
+PORT=XXXX
 
 # Database
-DATABASE_URL="postgresql://bookflix:bookflix_secret@localhost:5432/bookflix_db?schema=public"
+DATABASE_URL="postgresql://bookflix:bookflix_secret@localhost:XXXX/bookflix_db?schema=public"
 POSTGRES_USER=bookflix
 POSTGRES_PASSWORD=bookflix_secret
 POSTGRES_DB=bookflix_db
 
 # Database Test
-DATABASE_URL_TEST="postgresql://bookflix_test:bookflix_test_secret@localhost:5433/bookflix_test?schema=public"
+DATABASE_URL_TEST="postgresql://bookflix_test:bookflix_test_secret@localhost:XXXX/bookflix_test?schema=public"
 POSTGRES_USER_TEST=bookflix_test
 POSTGRES_PASSWORD_TEST=bookflix_test_secret
 
@@ -77,7 +75,7 @@ GOOGLE_BOOKS_API_KEY=your_google_books_api_key_here
 GOOGLE_BOOKS_API_URL=https://www.googleapis.com/books/v1
 
 # Security
-FRONTEND_URL=http://localhost:4200
+FRONTEND_URL=http://localhost:XXXX
 THROTTLE_TTL=900000
 THROTTLE_LIMIT=100
 ```
@@ -120,7 +118,7 @@ npm run prisma:seed
 npm run start:dev
 ```
 
-L'API est disponible sur : `http://localhost:3000/graphql`
+L'API est disponible sur : `http://localhost:XXXX/graphql`
 
 ---
 
@@ -131,9 +129,9 @@ docker compose up --build
 ```
 
 Services démarrés :
-- **API** → `http://localhost:3000/graphql`
-- **PostgreSQL** → `localhost:5432`
-- **Adminer** → `http://localhost:8080`
+- **API** → `http://localhost:XXXX/graphql`
+- **PostgreSQL** → `localhost:XXXX`
+- **Adminer** → `http://localhost:XXXX`
 
 ---
 
