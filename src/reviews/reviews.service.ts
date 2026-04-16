@@ -136,6 +136,7 @@ export class ReviewsService {
             lastSyncedAt: review.book.lastSyncedAt,
             createdAt: review.book.createdAt,
             updatedAt: review.book.updatedAt,
+            reviewCount: 0,
             googleBooksId: review.book.googleBooksId ?? undefined,
             description: review.book.description ?? undefined,
             publishedYear: review.book.publishedYear ?? undefined,

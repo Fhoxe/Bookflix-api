@@ -141,6 +141,7 @@ export class CollectionService {
             lastSyncedAt: userBook.book.lastSyncedAt,
             createdAt: userBook.book.createdAt,
             updatedAt: userBook.book.updatedAt,
+            reviewCount: 0,
             googleBooksId: userBook.book.googleBooksId ?? undefined,
             description: userBook.book.description ?? undefined,
             publishedYear: userBook.book.publishedYear ?? undefined,
