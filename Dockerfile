@@ -11,7 +11,7 @@ COPY prisma.config.ts ./prisma.config.ts
 RUN npx prisma generate
 
 COPY . .
-RUN npm run build
+RUN npx tsc --project tsconfig.build.json
 
 # ─── Stage 2 : Production ────────────────────────────────────────
 FROM node:20-alpine AS production
