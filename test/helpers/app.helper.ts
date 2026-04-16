@@ -3,7 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../../src/app.module.js';
 import { config } from 'dotenv';
 
-config({ path: '.env' });
+config({ path: '.env', quiet: true });
 process.env['DATABASE_URL'] = process.env['DATABASE_URL_TEST'];
 
 let app: INestApplication | null = null;
